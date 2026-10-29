@@ -46,6 +46,7 @@ Thumbs.db
 # Electron and Express build output
 /dist-node
 /release
+*.tsbuildinfo
 
 # User data written by the standalone dev server (stage 3)
 /.dev-user-data
