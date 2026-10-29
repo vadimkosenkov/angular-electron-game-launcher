@@ -1,0 +1,29 @@
+/* TypeScript configuration for the Node.js side of the project: the Electron   */
+/* main process, the preload script and (from stage 3) the Express server.      */
+/* It is intentionally separate from tsconfig.app.json: the Angular code runs   */
+/* in a browser and must not see Node globals, while this code runs in Node and */
+/* must not see the DOM.                                                        */
+{
+  "compilerOptions": {
+    "target": "ES2023",
+    "lib": ["ES2023"],
+    "module": "node20",
+    "types": ["node"],
+
+    "rootDir": ".",
+    "outDir": "dist-node",
+
+    "strict": true,
+    "noImplicitOverride": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "skipLibCheck": true,
+    "sourceMap": true
+  },
+  "include": ["electron/**/*.ts", "shared/**/*.ts"]
+}
