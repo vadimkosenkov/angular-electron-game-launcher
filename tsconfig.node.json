@@ -25,5 +25,5 @@
     "skipLibCheck": true,
     "sourceMap": true
   },
-  "include": ["electron/**/*.ts", "shared/**/*.ts"]
+  "include": ["electron/**/*.ts", "server/**/*.ts", "shared/**/*.ts"]
 }

@@ -1,0 +1,282 @@
+[
+  {
+    "id": "2048",
+    "title": "2048",
+    "genres": ["puzzle"],
+    "tags": ["singleplayer", "no-account", "offline-capable"],
+    "summary": {
+      "en": "Slide numbered tiles together until one of them reads 2048.",
+      "ru": "Сдвигайте плитки с числами, пока одна из них не станет 2048."
+    },
+    "description": {
+      "en": "A sliding puzzle written over a weekend in 2014 and cloned ever since. Every move pushes the entire board in one direction and spawns a new tile, so space runs out exactly when you are chasing the next doubling.",
+      "ru": "Головоломка, написанная за выходные в 2014 году и с тех пор бесконечно клонированная. Каждый ход сдвигает всё поле целиком и добавляет новую плитку, поэтому место заканчивается ровно тогда, когда вы гонитесь за следующим удвоением."
+    },
+    "playUrl": "https://play2048.co/",
+    "accentColor": "#edc22e",
+    "developer": "Gabriele Cirulli",
+    "releaseYear": 2014
+  },
+  {
+    "id": "slither-io",
+    "title": "Slither.io",
+    "genres": ["action"],
+    "tags": ["multiplayer", "no-account"],
+    "summary": {
+      "en": "Grow the longest snake in the arena without touching anyone else.",
+      "ru": "Вырастите самую длинную змею на арене, не коснувшись чужого тела."
+    },
+    "description": {
+      "en": "An arena of hundreds of snakes eating glowing pellets. Length is the only score, touching another snake is instant death, and whoever you cut off turns into food.",
+      "ru": "Арена из сотен змей, поедающих светящиеся шарики. Длина — единственный счёт, касание чужого тела означает мгновенную смерть, а подрезанный соперник превращается в еду."
+    },
+    "playUrl": "https://slither.io/",
+    "accentColor": "#39c16c",
+    "developer": "Steve Howse",
+    "releaseYear": 2016
+  },
+  {
+    "id": "skribbl-io",
+    "title": "Skribbl.io",
+    "genres": ["party"],
+    "tags": ["multiplayer", "no-account"],
+    "summary": {
+      "en": "Draw a word while everyone else races to guess it.",
+      "ru": "Рисуйте слово, пока остальные наперегонки его угадывают."
+    },
+    "description": {
+      "en": "Turn-based drawing and guessing for private rooms. One player gets a word and a whiteboard, everyone else types guesses, and the points go to whoever is quick.",
+      "ru": "Пошаговое рисование и угадывание для приватных комнат. Одному игроку достаётся слово и доска, остальные пишут догадки, а очки получает тот, кто быстрее."
+    },
+    "playUrl": "https://skribbl.io/",
+    "accentColor": "#5aa8ff"
+  },
+  {
+    "id": "krunker",
+    "title": "Krunker.io",
+    "genres": ["shooter"],
+    "tags": ["multiplayer"],
+    "summary": {
+      "en": "A fast, blocky arena shooter that runs in a browser tab.",
+      "ru": "Быстрый угловатый арена-шутер, работающий прямо во вкладке браузера."
+    },
+    "description": {
+      "en": "Movement-heavy deathmatch with classes, community maps and a skin economy. The deliberately simple graphics keep it playable on hardware that a native shooter would choke.",
+      "ru": "Дезматч с упором на движение, классами, пользовательскими картами и экономикой скинов. Нарочито простая графика позволяет играть на железе, которое не потянуло бы обычный шутер."
+    },
+    "playUrl": "https://krunker.io/",
+    "accentColor": "#e8b63a"
+  },
+  {
+    "id": "shell-shockers",
+    "title": "Shell Shockers",
+    "genres": ["shooter"],
+    "tags": ["multiplayer", "no-account"],
+    "summary": {
+      "en": "A first-person shooter where every soldier is an egg.",
+      "ru": "Шутер от первого лица, где каждый боец — яйцо."
+    },
+    "description": {
+      "en": "The joke carries a real shooter: three classes, team modes, and a damage model where a cracked shell is a countdown rather than a health bar.",
+      "ru": "За шуткой стоит настоящий шутер: три класса, командные режимы и модель урона, где треснувшая скорлупа работает скорее как обратный отсчёт, чем как полоска здоровья."
+    },
+    "playUrl": "https://shellshock.io/",
+    "accentColor": "#f2a93b",
+    "developer": "Blue Wizard Digital",
+    "releaseYear": 2017
+  },
+  {
+    "id": "diep-io",
+    "title": "Diep.io",
+    "genres": ["action", "strategy"],
+    "tags": ["multiplayer", "no-account"],
+    "summary": {
+      "en": "Upgrade a tank, farm shapes, outgun everyone else.",
+      "ru": "Прокачайте танк, фармите фигуры и перестреляйте остальных."
+    },
+    "description": {
+      "en": "A top-down arena where shooting drifting polygons buys upgrade points. The branching upgrade tree turns every match into a bet on which build survives the late game.",
+      "ru": "Арена с видом сверху, где расстрел дрейфующих многоугольников приносит очки прокачки. Ветвящееся дерево улучшений превращает каждый матч в ставку на то, какая сборка доживёт до конца."
+    },
+    "playUrl": "https://diep.io/",
+    "accentColor": "#00b2e1",
+    "developer": "Matheus Valadares",
+    "releaseYear": 2016
+  },
+  {
+    "id": "tetrio",
+    "title": "TETR.IO",
+    "genres": ["puzzle"],
+    "tags": ["multiplayer", "singleplayer"],
+    "summary": {
+      "en": "Competitive stacking: clear lines and bury your opponent in garbage.",
+      "ru": "Соревновательный тетрис: собирайте линии и заваливайте соперника мусором."
+    },
+    "description": {
+      "en": "A modern take on competitive block stacking, with configurable handling, ranked ladders and multiplayer rooms. Clearing lines sends garbage to everyone still standing.",
+      "ru": "Современный взгляд на соревновательный тетрис: настраиваемое управление, рейтинговые лиги и многопользовательские комнаты. Собранные линии отправляют мусор всем, кто ещё держится."
+    },
+    "playUrl": "https://tetr.io/",
+    "accentColor": "#a753ff",
+    "developer": "osk",
+    "releaseYear": 2020
+  },
+  {
+    "id": "lichess",
+    "title": "Lichess",
+    "genres": ["board"],
+    "tags": ["multiplayer", "singleplayer", "no-account"],
+    "summary": {
+      "en": "Full-strength chess, free and without an account.",
+      "ru": "Полноценные шахматы, бесплатно и без регистрации."
+    },
+    "description": {
+      "en": "An open-source chess server with engine analysis, puzzles, studies and every time control from bullet to classical. Nothing is behind a paywall and nothing requires signing up.",
+      "ru": "Шахматный сервер с открытым исходным кодом: анализ движком, задачи, учебные разборы и любой контроль времени от пули до классики. Ничего не спрятано за платой и ничего не требует регистрации."
+    },
+    "playUrl": "https://lichess.org/",
+    "accentColor": "#b9b28a",
+    "developer": "Thibault Duplessis",
+    "releaseYear": 2010
+  },
+  {
+    "id": "a-dark-room",
+    "title": "A Dark Room",
+    "genres": ["adventure", "idle"],
+    "tags": ["singleplayer", "no-account", "offline-capable"],
+    "summary": {
+      "en": "A text game that opens with a single button and keeps unfolding.",
+      "ru": "Текстовая игра, которая начинается с одной кнопки и всё время разворачивается."
+    },
+    "description": {
+      "en": "It begins as a fire that needs stoking and quietly becomes something much larger. Saying more spoils it; the restraint of the interface is the point.",
+      "ru": "Всё начинается с костра, который нужно поддерживать, и тихо превращается во что-то гораздо большее. Рассказывать больше — испортить впечатление: сдержанность интерфейса здесь и есть замысел."
+    },
+    "playUrl": "https://adarkroom.doublespeakgames.com/",
+    "accentColor": "#c9c9c9",
+    "developer": "Doublespeak Games",
+    "releaseYear": 2013
+  },
+  {
+    "id": "minecraft-classic",
+    "title": "Minecraft Classic",
+    "genres": ["sandbox"],
+    "tags": ["multiplayer", "singleplayer", "no-account"],
+    "summary": {
+      "en": "The 2009 version of Minecraft, playable in a browser.",
+      "ru": "Версия Minecraft 2009 года, запускающаяся прямо в браузере."
+    },
+    "description": {
+      "en": "Mojang put the original creative-mode build back online: thirty-two blocks, no crafting, no survival, and a shareable world you can open with friends.",
+      "ru": "Mojang вернула в сеть исходный творческий режим: тридцать два блока, без крафта и выживания, зато с миром, который можно открыть друзьям по ссылке."
+    },
+    "playUrl": "https://classic.minecraft.net/",
+    "accentColor": "#7bbf5a",
+    "developer": "Mojang",
+    "releaseYear": 2009
+  },
+  {
+    "id": "little-alchemy-2",
+    "title": "Little Alchemy 2",
+    "genres": ["puzzle"],
+    "tags": ["singleplayer", "no-account"],
+    "summary": {
+      "en": "Combine four elements into hundreds of other things.",
+      "ru": "Соединяйте четыре стихии в сотни других предметов."
+    },
+    "description": {
+      "en": "Drag two items together and see what they make. The fun is in the chains: the route from earth and water to something absurd is rarely the one you expect.",
+      "ru": "Перетащите два предмета друг на друга и посмотрите, что получится. Интерес в цепочках: путь от земли и воды до чего-то абсурдного редко оказывается ожидаемым."
+    },
+    "playUrl": "https://littlealchemy2.com/",
+    "accentColor": "#6ec1d8",
+    "developer": "Recloak",
+    "releaseYear": 2017
+  },
+  {
+    "id": "paperclips",
+    "title": "Universal Paperclips",
+    "genres": ["idle", "strategy"],
+    "tags": ["singleplayer", "no-account"],
+    "summary": {
+      "en": "Make paperclips. Then make more. Then reconsider everything.",
+      "ru": "Делайте скрепки. Потом ещё. Потом пересмотрите всё."
+    },
+    "description": {
+      "en": "An incremental game built around the paperclip-maximiser thought experiment. It starts with one button and ends somewhere the first click does not prepare you for.",
+      "ru": "Инкрементальная игра вокруг мысленного эксперимента о максимизаторе скрепок. Начинается с одной кнопки и заканчивается там, куда первый клик вас совершенно не готовит."
+    },
+    "playUrl": "https://www.decisionproblem.com/paperclips/",
+    "accentColor": "#b9bcc7",
+    "developer": "Frank Lantz",
+    "releaseYear": 2017
+  },
+  {
+    "id": "candy-box-2",
+    "title": "Candy Box 2",
+    "genres": ["adventure", "idle"],
+    "tags": ["singleplayer", "no-account"],
+    "summary": {
+      "en": "An ASCII role-playing game hiding behind a candy counter.",
+      "ru": "ASCII-ролёвка, спрятанная за счётчиком конфет."
+    },
+    "description": {
+      "en": "Candies accumulate whether you watch or not, and spending them opens a full game drawn entirely in text characters: a map, a shop, quests and genuinely hard fights.",
+      "ru": "Конфеты копятся независимо от того, смотрите вы или нет, а их трата открывает полноценную игру, нарисованную текстовыми символами: карта, лавка, задания и по-настоящему трудные бои."
+    },
+    "playUrl": "https://candybox2.net/",
+    "accentColor": "#e86f9e",
+    "developer": "aniwey",
+    "releaseYear": 2013
+  },
+  {
+    "id": "smash-karts",
+    "title": "Smash Karts",
+    "genres": ["racing", "action"],
+    "tags": ["multiplayer", "no-account"],
+    "summary": {
+      "en": "Kart arena deathmatch with weapons and three-minute rounds.",
+      "ru": "Картинг-арена со стрельбой и раундами по три минуты."
+    },
+    "description": {
+      "en": "Less about racing than about running people over. Weapon crates appear around the track, rounds are short, and lobbies fill in seconds.",
+      "ru": "Не столько гонки, сколько попытки друг друга протаранить. По трассе разбросаны ящики с оружием, раунды короткие, а лобби набираются за секунды."
+    },
+    "playUrl": "https://smashkarts.io/",
+    "accentColor": "#ff7a45"
+  },
+  {
+    "id": "bloxd-io",
+    "title": "Bloxd.io",
+    "genres": ["sandbox", "party"],
+    "tags": ["multiplayer", "no-account"],
+    "summary": {
+      "en": "A voxel sandbox with minigames and shared worlds.",
+      "ru": "Воксельная песочница с мини-играми и общими мирами."
+    },
+    "description": {
+      "en": "Block building plus a rotation of party modes — parkour, bed wars, survival — all in one browser tab and all on public servers you can join without an account.",
+      "ru": "Строительство из блоков плюс набор совместных режимов — паркур, bed wars, выживание — всё в одной вкладке и на публичных серверах, куда можно зайти без аккаунта."
+    },
+    "playUrl": "https://bloxd.io/",
+    "accentColor": "#6fcf97"
+  },
+  {
+    "id": "hexgl",
+    "title": "HexGL",
+    "genres": ["racing"],
+    "tags": ["singleplayer", "no-account"],
+    "summary": {
+      "en": "A futuristic WebGL racer in the spirit of Wipeout.",
+      "ru": "Футуристичный WebGL-гонщик в духе Wipeout."
+    },
+    "description": {
+      "en": "An open-source showcase of what WebGL could already do in 2012: anti-gravity ships, long tunnels and a sense of speed that holds up on a laptop.",
+      "ru": "Проект с открытым исходным кодом, показавший возможности WebGL ещё в 2012 году: антигравитационные корабли, длинные тоннели и ощущение скорости, которое держится даже на ноутбуке."
+    },
+    "playUrl": "https://hexgl.bkcore.com/play/",
+    "accentColor": "#ff4e50",
+    "developer": "Thibaut Despoulain",
+    "releaseYear": 2012
+  }
+]
