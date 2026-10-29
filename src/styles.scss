@@ -1,0 +1,50 @@
+/* Global design tokens and base styles. Light theme and theme switching land  */
+/* in stage 6; until then the launcher is dark only.                           */
+:root {
+  color-scheme: dark;
+
+  --surface-base: #0f1115;
+  --surface-raised: #171a21;
+  --border-subtle: #262a33;
+
+  --text-primary: #e7eaf1;
+  --text-secondary: #959dad;
+
+  --accent: #4f8cff;
+  --state-ok: #3ecf8e;
+  --state-danger: #f2555a;
+
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --titlebar-height: 52px;
+
+  --font-sans: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', sans-serif;
+  --font-mono: ui-monospace, 'SF Mono', 'JetBrains Mono', monospace;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--surface-base);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+  /* A desktop window does not scroll as a whole; panes scroll on their own. */
+  overflow: hidden;
+}
+
+app-root {
+  display: block;
+  height: 100%;
+}
