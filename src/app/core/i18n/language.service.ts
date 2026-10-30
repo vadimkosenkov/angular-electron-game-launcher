@@ -31,9 +31,8 @@ export class LanguageService {
 
   constructor() {
     // Transloco keeps its own notion of the active language, so it is pushed
-    // rather than asked. Until the saved settings arrive the interface is in
-    // the default language, which is a single frame in practice and the only
-    // honest answer before the file has been read.
+    // rather than asked. Bootstrap waits for the saved settings, so the first
+    // render is already in the right language rather than switching to it.
     effect(() => {
       this.transloco.setActiveLang(this.current());
     });

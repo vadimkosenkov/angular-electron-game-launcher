@@ -3,6 +3,16 @@
   margin: 0 0 26px;
   padding: 0;
   border: 0;
+
+  // `disabled` on the fieldset already stops the inputs responding; this is
+  // so the control does not look available while it is not.
+  &:disabled {
+    opacity: 0.5;
+  }
+}
+
+.field:disabled .segmented__option {
+  cursor: default;
 }
 
 .field__label {

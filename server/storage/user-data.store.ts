@@ -83,6 +83,11 @@ export interface LoadUserDataOptions {
  * is moved aside rather than overwritten: it is the person's data, it may be
  * recoverable by hand, and silently replacing it would be the one failure mode
  * they could never undo.
+ *
+ * Any other read failure -- permissions, a failing disk -- is rethrown and
+ * stops startup, which is the one case where that is the right answer. A file
+ * we cannot read is not a file we know to be damaged, and starting without it
+ * would leave the next write free to replace data that was probably intact.
  */
 export async function loadUserData(options: LoadUserDataOptions): Promise<UserDataStore> {
   const filePath = join(options.directory, USER_DATA_FILE);

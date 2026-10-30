@@ -34,7 +34,7 @@ export class Settings {
 
   protected readonly currentLanguage = this.language.current;
   protected readonly isLoaded = this.userData.isLoaded;
-  protected readonly failure = this.userData.failure;
+  protected readonly failure = this.userData.loadFailure;
 
   /**
    * Language names are never translated: someone looking for their own
@@ -62,6 +62,7 @@ export class Settings {
   }
 
   protected reload(): void {
-    this.userData.load();
+    // Deliberately not awaited: the template follows the store's signals.
+    void this.userData.load();
   }
 }

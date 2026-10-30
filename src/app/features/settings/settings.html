@@ -6,16 +6,16 @@
 
   @if (!isLoaded()) {
     <!--
-      Shown only until the stored settings arrive. The controls below are
-      rendered either way, because the defaults they show are real values the
-      launcher is using -- not placeholders.
+      Bootstrap waits for the settings to be read, so reaching this page
+      without them means the read failed. The controls are then disabled
+      rather than merely unhelpful: a write replaces the whole settings
+      object, so saving on top of values we never managed to read would
+      overwrite the real ones with defaults.
     -->
     <div class="notice notice--error">
       <p class="notice__title">{{ t('settings.unreadTitle') }}</p>
       <p class="notice__detail">{{ failure() ?? t('state.loading') }}</p>
-      @if (failure()) {
-        <button type="button" class="button" (click)="reload()">{{ t('state.retry') }}</button>
-      }
+      <button type="button" class="button" (click)="reload()">{{ t('state.retry') }}</button>
     </div>
   }
 
@@ -25,7 +25,7 @@
     group is one tab stop with arrow keys between the options, which is what
     a single-choice control is supposed to do.
   -->
-  <fieldset class="field">
+  <fieldset class="field" [disabled]="!isLoaded()">
     <legend class="field__label">{{ t('settings.language') }}</legend>
     <div class="segmented">
       @for (option of languages; track option) {
@@ -45,7 +45,7 @@
     <p class="field__hint">{{ t('settings.languageHint') }}</p>
   </fieldset>
 
-  <fieldset class="field">
+  <fieldset class="field" [disabled]="!isLoaded()">
     <legend class="field__label">{{ t('settings.theme') }}</legend>
     <div class="segmented">
       @for (option of themeOptions; track option) {

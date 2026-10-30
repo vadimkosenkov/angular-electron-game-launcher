@@ -284,6 +284,12 @@ undo.
 | not JSON at all | moved aside, defaults loaded, warning logged |
 | an unknown language or theme | that field falls back, the rest is kept, warning logged |
 | a favourite that is not a game | that entry is dropped, the rest is kept |
+| cannot be read at all (permissions, I/O) | startup fails loudly |
+
+That last row is deliberate and is the one case that does stop the launcher. A
+file we cannot read is not a file we know to be damaged: starting with defaults
+would leave the next write free to replace data that was probably still intact.
+Refusing to start is recoverable; overwriting is not.
 
 **Writes are atomic.** `writeFile` straight onto the real path is not: a crash
 partway through leaves a truncated file. Each write goes to
@@ -298,6 +304,17 @@ never corrupt is the part worth paying for, an fsync per click is not.
 server at startup and the file name is a constant. There is no `..` to filter,
 because there is nothing to concatenate -- which is a stronger guarantee than
 sanitising a name correctly every time.
+
+**The settings are read before anything renders.** Bootstrap waits for them,
+alongside the session token it already waited for. A write to the settings
+replaces the whole object, so a renderer that had not finished reading would
+send a default back in the field the user did not touch and overwrite the
+saved value with it -- loading first removes that window instead of narrowing
+it, and the interface is never briefly in the wrong language or theme. If the
+read fails outright the settings controls are disabled until a retry succeeds,
+because writing over values we never managed to read is the one thing that
+loses them. Favourites are unaffected either way: they are changed one id at a
+time, so the server merges rather than replaces.
 
 **The renderer guesses, the server decides.** Pressing a heart fills it at
 once and sends the request afterwards. If the write fails, the store puts the
@@ -319,9 +336,10 @@ written to `<html data-theme>`, and `src/styles.scss` defines the colour tokens
 twice, once under each value. No component has a light-mode branch; they all
 read the same custom properties.
 
-The bare `:root` block is the first frame, before the stored setting has been
-read, and it is the dark palette -- a light-mode user sees one dark frame
-rather than a flash of white.
+The bare `:root` block covers the paint before Angular has started at all, and
+it is the dark palette -- a light-mode user sees one dark frame rather than a
+flash of white. By the time the first component renders the stored preference
+has already been read, so the theme does not change under them.
 
 ### Cover art
 

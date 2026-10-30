@@ -27,7 +27,7 @@ export class App {
   /** Shown next to the navigation entry, so the count is visible from anywhere. */
   protected readonly favouriteCount = computed(() => this.userData.favouriteIds().length);
 
-  protected readonly saveFailure = this.userData.failure;
+  protected readonly saveFailure = this.userData.saveFailure;
 
   constructor() {
     // Asked for purely to bring it into existence. A root-provided service is

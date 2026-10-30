@@ -1,5 +1,5 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
-import type { Observable } from 'rxjs';
+import { firstValueFrom, type Observable } from 'rxjs';
 
 import type { Language } from '@shared/game.model';
 import {
@@ -28,7 +28,13 @@ export class UserDataStore {
 
   private readonly state = signal<UserData>(DEFAULT_USER_DATA);
   private readonly loaded = signal(false);
-  private readonly error = signal<string | null>(null);
+
+  // Reading and writing fail for different reasons and are reported in
+  // different places -- the settings page explains a failed read, the shell
+  // explains a failed write -- so one signal for both would put the wrong
+  // words under whichever happened.
+  private readonly readError = signal<string | null>(null);
+  private readonly writeError = signal<string | null>(null);
 
   readonly settings = computed(() => this.state().settings);
 
@@ -38,25 +44,40 @@ export class UserDataStore {
   /** Membership is asked once per card, so the set is derived once per change. */
   private readonly favouriteSet = computed(() => new Set(this.state().favourites));
 
-  /** True once the server has answered. Until then these are the defaults. */
+  /**
+   * True once the file has been read. Bootstrap waits for that, so this is
+   * false only when the read actually failed -- and then these are defaults
+   * standing in for data that exists, which is why the settings page refuses
+   * to write over it until a retry succeeds.
+   */
   readonly isLoaded = this.loaded.asReadonly();
 
-  /** The last read or write that failed, if the next one has not cleared it. */
-  readonly failure = this.error.asReadonly();
+  /** Why the stored data could not be read, if it could not. */
+  readonly loadFailure = this.readError.asReadonly();
 
-  constructor() {
-    this.load();
-  }
+  /** Why the last change did not reach the disk, if it did not. */
+  readonly saveFailure = this.writeError.asReadonly();
 
-  load(): void {
-    this.api.getUserData().subscribe({
-      next: (data) => {
-        this.state.set(data);
-        this.loaded.set(true);
-        this.error.set(null);
-      },
-      error: (error: unknown) => this.error.set(describeApiError(error)),
-    });
+  /**
+   * Reads the stored data, and never rejects: a failure here must not stop the
+   * application booting.
+   *
+   * Bootstrap waits for this, which is what makes `settings()` safe to send
+   * back to the server. A write to the settings replaces the whole object, so
+   * a renderer that had not finished reading would send a default in the field
+   * the user did not touch and overwrite the saved value with it. Loading
+   * before the first component renders removes that window rather than
+   * narrowing it -- and incidentally means the interface is never briefly in
+   * the wrong language or theme.
+   */
+  async load(): Promise<void> {
+    try {
+      this.state.set(await firstValueFrom(this.api.getUserData()));
+      this.loaded.set(true);
+      this.readError.set(null);
+    } catch (error: unknown) {
+      this.readError.set(describeApiError(error));
+    }
   }
 
   isFavourite(gameId: string): boolean {
@@ -108,13 +129,13 @@ export class UserDataStore {
     const previous = this.state();
 
     this.state.set(optimistic);
-    this.error.set(null);
+    this.writeError.set(null);
 
     request.subscribe({
       next: (confirmed) => this.state.set(confirmed),
       error: (error: unknown) => {
         this.state.set(previous);
-        this.error.set(describeApiError(error));
+        this.writeError.set(describeApiError(error));
       },
     });
   }
