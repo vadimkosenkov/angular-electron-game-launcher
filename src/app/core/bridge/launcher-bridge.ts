@@ -1,6 +1,7 @@
-import { Injectable } from '@angular/core';
+import { Injectable, isDevMode } from '@angular/core';
 
 import type { LauncherBridge } from '@shared/bridge.model';
+import { DEV_SESSION_TOKEN } from '@shared/dev-config';
 
 /** Node globals that must never be reachable from the page's own scope. */
 const NODE_GLOBALS = ['require', 'process', 'module', 'Buffer', 'global'] as const;
@@ -26,6 +27,25 @@ export class LauncherBridgeService {
 
   get isElectron(): boolean {
     return this.bridge !== null;
+  }
+
+  /**
+   * The API token for this run.
+   *
+   * Inside Electron it is asked of the main process over IPC. In the
+   * browser-only development mode there is no bridge, so the fixed token of
+   * `npm run dev:api` is used instead -- a placeholder, not a secret: it only
+   * ever matches that standalone server, and a packaged launcher always has a
+   * bridge, so this branch is never taken there.
+   */
+  async readSessionToken(): Promise<string> {
+    if (this.bridge !== null) {
+      return this.bridge.getSessionToken();
+    }
+    if (isDevMode()) {
+      return DEV_SESSION_TOKEN;
+    }
+    throw new Error('No Electron bridge is available, so the API cannot be reached.');
   }
 }
 

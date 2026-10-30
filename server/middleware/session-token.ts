@@ -2,9 +2,8 @@ import { timingSafeEqual } from 'node:crypto';
 
 import type { RequestHandler } from 'express';
 
+import { SESSION_TOKEN_HEADER } from '../../shared/api.model';
 import { ApiError } from '../api-error';
-
-export const SESSION_TOKEN_HEADER = 'x-launcher-token';
 
 /**
  * Every API route except health requires a token generated when the launcher

@@ -3,6 +3,9 @@
  * guess what came back.
  */
 
+/** Carries the session token on every request but health. */
+export const SESSION_TOKEN_HEADER = 'x-launcher-token';
+
 export interface ApiSuccess<T> {
   readonly data: T;
 }

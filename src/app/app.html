@@ -6,11 +6,49 @@
 </header>
 
 <main class="content">
-  <h1 class="content__heading">Stage 2 &mdash; application skeleton</h1>
+  <h1 class="content__heading">Stage 4 &mdash; Electron and Express connected</h1>
   <p class="content__lede">
-    No catalog and no API yet. This page exists to prove that the Angular renderer and
-    the Electron shell are wired together, and that the renderer is locked down.
+    The catalog interface arrives in the next stage. This page proves the chain is
+    whole: the main process started the API, handed the renderer a token over the
+    context bridge, and everything below came back over HTTP.
   </p>
+
+  <section class="panel">
+    <h2 class="panel__heading">API</h2>
+
+    @if (isApiLoading()) {
+      <p class="panel__note">Calling the local API&hellip;</p>
+    }
+
+    @if (apiFailure(); as failure) {
+      <p class="panel__note panel__note--error">{{ failure }}</p>
+    }
+
+    @if (apiResult(); as result) {
+      <dl class="panel__rows">
+        <div class="row">
+          <dt class="row__label">Health</dt>
+          <dd class="row__value" data-state="ok">
+            {{ result.health.status }}, up {{ result.health.uptimeSeconds }}s
+          </dd>
+        </div>
+        <div class="row">
+          <dt class="row__label">Catalog</dt>
+          <dd class="row__value" data-state="ok">{{ result.games.length }} games</dd>
+        </div>
+      </dl>
+
+      <ul class="games">
+        @for (game of result.games; track game.id) {
+          <li class="games__item">
+            <span class="games__dot" [style.backgroundColor]="game.accentColor"></span>
+            <span class="games__title">{{ game.title }}</span>
+            <span class="games__genres">{{ game.genres.join(', ') }}</span>
+          </li>
+        }
+      </ul>
+    }
+  </section>
 
   @for (panel of panels; track panel.heading) {
     <section class="panel">

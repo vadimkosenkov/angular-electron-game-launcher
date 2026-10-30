@@ -1,5 +1,12 @@
-import { Component, inject, VERSION } from '@angular/core';
+import { Component, computed, inject, signal, VERSION } from '@angular/core';
+import { forkJoin } from 'rxjs';
 
+import type { HealthStatus } from '@shared/api.model';
+import type { Game } from '@shared/game.model';
+
+import { ApiClient } from './core/api/api.client';
+import { describeApiError } from './core/api/api-error';
+import { SessionTokenService } from './core/api/session-token.service';
 import { LauncherBridgeService } from './core/bridge/launcher-bridge';
 
 type DiagnosticState = 'ok' | 'danger' | 'neutral';
@@ -15,6 +22,11 @@ interface DiagnosticPanel {
   readonly rows: readonly DiagnosticRow[];
 }
 
+type ApiState =
+  | { readonly kind: 'loading' }
+  | { readonly kind: 'ready'; readonly health: HealthStatus; readonly games: readonly Game[] }
+  | { readonly kind: 'failed'; readonly message: string };
+
 @Component({
   selector: 'app-root',
   styleUrl: './app.scss',
@@ -22,13 +34,42 @@ interface DiagnosticPanel {
 })
 export class App {
   private readonly launcher = inject(LauncherBridgeService);
+  private readonly sessionToken = inject(SessionTokenService);
+  private readonly api = inject(ApiClient);
 
   protected readonly isElectron = this.launcher.isElectron;
 
+  private readonly apiState = signal<ApiState>({ kind: 'loading' });
+
+  // Narrowing a discriminated union inside a template needs a value the type
+  // checker can hold on to, so each case is exposed as its own signal. The
+  // alternative, casting in the template, would switch type checking off at
+  // exactly the place it is worth having.
+  protected readonly isApiLoading = computed(() => this.apiState().kind === 'loading');
+  protected readonly apiFailure = computed(() => {
+    const state = this.apiState();
+    return state.kind === 'failed' ? state.message : null;
+  });
+  protected readonly apiResult = computed(() => {
+    const state = this.apiState();
+    return state.kind === 'ready' ? state : null;
+  });
+
   protected readonly panels: readonly DiagnosticPanel[] = [
     { heading: 'Runtime', rows: buildRuntimeRows(this.launcher) },
-    { heading: 'Renderer isolation', rows: buildIsolationRows(this.launcher) },
+    {
+      heading: 'Renderer isolation',
+      rows: buildIsolationRows(this.launcher, this.sessionToken),
+    },
   ];
+
+  constructor() {
+    forkJoin({ health: this.api.getHealth(), games: this.api.getGames() }).subscribe({
+      next: ({ health, games }) => this.apiState.set({ kind: 'ready', health, games }),
+      error: (error: unknown) =>
+        this.apiState.set({ kind: 'failed', message: describeApiError(error) }),
+    });
+  }
 }
 
 function buildRuntimeRows(launcher: LauncherBridgeService): DiagnosticRow[] {
@@ -47,9 +88,13 @@ function buildRuntimeRows(launcher: LauncherBridgeService): DiagnosticRow[] {
   ];
 }
 
-function buildIsolationRows(launcher: LauncherBridgeService): DiagnosticRow[] {
+function buildIsolationRows(
+  launcher: LauncherBridgeService,
+  sessionToken: SessionTokenService,
+): DiagnosticRow[] {
   const security = launcher.bridge?.security;
   const leaked = launcher.leakedNodeGlobals;
+  const tokenProblem = sessionToken.unavailableReason();
 
   return [
     {
@@ -66,6 +111,13 @@ function buildIsolationRows(launcher: LauncherBridgeService): DiagnosticRow[] {
       label: 'Node globals in page',
       value: leaked.length === 0 ? 'none found' : `leaked: ${leaked.join(', ')}`,
       state: leaked.length === 0 ? 'ok' : 'danger',
+    },
+    {
+      label: 'Session token',
+      // The token itself is never rendered: the page proves it has one by
+      // getting answers from the API, not by printing it.
+      value: tokenProblem ?? (sessionToken.value === '' ? 'empty' : 'held, not shown'),
+      state: tokenProblem !== null || sessionToken.value === '' ? 'danger' : 'ok',
     },
   ];
 }
