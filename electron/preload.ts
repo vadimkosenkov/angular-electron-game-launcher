@@ -1,6 +1,11 @@
 import { contextBridge, ipcRenderer } from 'electron';
 
-import type { LauncherBridge, SessionTokenChannel } from '../shared/bridge.model';
+import type {
+  LauncherBridge,
+  OpenExternalChannel,
+  OpenExternalOutcome,
+  SessionTokenChannel,
+} from '../shared/bridge.model';
 
 /**
  * Written out instead of imported.
@@ -12,6 +17,7 @@ import type { LauncherBridge, SessionTokenChannel } from '../shared/bridge.model
  * compiling the moment the shared channel name changes.
  */
 const sessionTokenChannel: SessionTokenChannel = 'launcher:session-token';
+const openExternalChannel: OpenExternalChannel = 'launcher:open-external';
 
 /**
  * The preload script is the only place where Node and the renderer meet.
@@ -35,6 +41,8 @@ const bridge: LauncherBridge = {
     sandbox: process.sandboxed,
   },
   getSessionToken: () => ipcRenderer.invoke(sessionTokenChannel),
+  openExternal: (url: string): Promise<OpenExternalOutcome> =>
+    ipcRenderer.invoke(openExternalChannel, url),
 };
 
 contextBridge.exposeInMainWorld('launcher', bridge);

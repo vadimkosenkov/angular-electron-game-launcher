@@ -1,0 +1,47 @@
+<section class="page scroll-pane" *transloco="let t">
+  <h1 class="page__heading">{{ t('nav.diagnostics') }}</h1>
+  <p class="page__lede">
+    What this renderer can see about itself, measured rather than assumed.
+  </p>
+
+  <section class="panel">
+    <h2 class="panel__heading">API</h2>
+
+    @if (isApiLoading()) {
+      <p class="panel__note">{{ t('state.loading') }}</p>
+    }
+
+    @if (apiFailure(); as failure) {
+      <p class="panel__note panel__note--error">{{ failure }}</p>
+    }
+
+    @if (apiResult(); as result) {
+      <dl class="panel__rows">
+        <div class="row">
+          <dt class="row__label">Health</dt>
+          <dd class="row__value" data-state="ok">
+            {{ result.health.status }}, up {{ result.health.uptimeSeconds }}s
+          </dd>
+        </div>
+        <div class="row">
+          <dt class="row__label">Catalog</dt>
+          <dd class="row__value" data-state="ok">{{ result.gameCount }} games</dd>
+        </div>
+      </dl>
+    }
+  </section>
+
+  @for (panel of panels; track panel.heading) {
+    <section class="panel">
+      <h2 class="panel__heading">{{ panel.heading }}</h2>
+      <dl class="panel__rows">
+        @for (row of panel.rows; track row.label) {
+          <div class="row">
+            <dt class="row__label">{{ row.label }}</dt>
+            <dd class="row__value" [attr.data-state]="row.state">{{ row.value }}</dd>
+          </div>
+        }
+      </dl>
+    </section>
+  }
+</section>

@@ -1,8 +1,13 @@
-import { app, BrowserWindow, dialog, ipcMain } from 'electron';
+import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron';
 import { join } from 'node:path';
 
-import { SESSION_TOKEN_CHANNEL } from '../shared/bridge.model';
+import {
+  OPEN_EXTERNAL_CHANNEL,
+  SESSION_TOKEN_CHANNEL,
+  type OpenExternalOutcome,
+} from '../shared/bridge.model';
 import { ANGULAR_DEV_SERVER_URL } from '../shared/dev-config';
+import { isHttpsUrl } from '../shared/url';
 import { createAppWindow } from './app-window';
 import { startLauncherApi, type LauncherApi } from './server-lifecycle';
 
@@ -71,6 +76,7 @@ async function startLauncher(): Promise<void> {
   rendererUrl = isDev ? ANGULAR_DEV_SERVER_URL : api.baseUrl;
 
   ipcMain.handle(SESSION_TOKEN_CHANNEL, () => api?.sessionToken ?? '');
+  ipcMain.handle(OPEN_EXTERNAL_CHANNEL, (_event, url: unknown) => openGameInBrowser(url));
 
   if (isDev) {
     console.log(`[main] user data: ${app.getPath('userData')}`);
@@ -85,6 +91,36 @@ function openMainWindow(): void {
     return;
   }
   createAppWindow({ targetUrl: rendererUrl });
+}
+
+/**
+ * Hands a game's address to the operating system, if it really is a game's
+ * address.
+ *
+ * Everything arriving over IPC is renderer input and is treated as such: the
+ * argument is typed `unknown` because a compromised renderer can invoke this
+ * channel with anything at all. The decision is made here rather than in the
+ * renderer for the same reason -- a check the attacker controls is not a check.
+ *
+ * Membership of the catalog is the real gate. The https test in front of it is
+ * redundant today, since the catalog schema already rejects anything else, and
+ * it stays because it is the invariant that must hold even if that schema is
+ * ever loosened: this process must never hand the operating system a
+ * `file:` or `javascript:` URL.
+ */
+async function openGameInBrowser(url: unknown): Promise<OpenExternalOutcome> {
+  if (api === undefined || typeof url !== 'string' || !isHttpsUrl(url) || !api.isPlayableUrl(url)) {
+    console.warn('[main] refused to open a URL that is not in the catalog:', url);
+    return 'rejected';
+  }
+
+  try {
+    await shell.openExternal(url);
+    return 'opened';
+  } catch (error) {
+    console.error('[main] the system browser could not open the URL:', error);
+    return 'failed';
+  }
 }
 
 function focusExistingWindow(): void {

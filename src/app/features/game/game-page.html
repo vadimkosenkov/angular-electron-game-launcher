@@ -1,0 +1,81 @@
+<section class="page scroll-pane" *transloco="let t">
+  <a class="back" routerLink="/discover">{{ t('game.back') }}</a>
+
+  @if (isLoading()) {
+    <p class="notice">{{ t('state.loading') }}</p>
+  } @else if (isMissing()) {
+    <div class="notice">
+      <p class="notice__title">{{ t('game.notFoundTitle') }}</p>
+      <p class="notice__detail">{{ t('game.notFoundHint') }}</p>
+    </div>
+  } @else if (failure(); as message) {
+    <div class="notice notice--error">
+      <p class="notice__title">{{ t('state.errorTitle') }}</p>
+      <p class="notice__detail">{{ message }}</p>
+    </div>
+  } @else if (game(); as game) {
+    <article class="game" [style.--game-accent]="game.accentColor">
+      <app-game-cover class="game__cover" [game]="game" />
+
+      <div class="game__main">
+        <h1 class="game__title">{{ game.title }}</h1>
+        <p class="game__summary">{{ language.text(game.summary) }}</p>
+
+        <div class="game__chips">
+          @for (genre of game.genres; track genre) {
+            <span class="chip">{{ t('genre.' + genre) }}</span>
+          }
+          @for (tag of game.tags; track tag) {
+            <span class="chip chip--muted">{{ t('tag.' + tag) }}</span>
+          }
+        </div>
+
+        <div class="play">
+          <button
+            type="button"
+            class="play__button"
+            [disabled]="playState() === 'opening'"
+            (click)="play(game)"
+          >
+            {{ playState() === 'opening' ? t('game.opening') : t('game.play') }}
+          </button>
+          <span class="play__hint">{{ t('game.playHint') }}</span>
+        </div>
+
+        @if (playState() === 'rejected' || playState() === 'failed') {
+          <p class="play__problem">
+            {{
+              playState() === 'rejected'
+                ? 'The launcher refused to open that address.'
+                : 'The system browser could not be opened.'
+            }}
+          </p>
+        }
+      </div>
+    </article>
+
+    <section class="panel">
+      <h2 class="panel__heading">{{ t('game.about') }}</h2>
+      <p class="panel__prose">{{ language.text(game.description) }}</p>
+    </section>
+
+    <section class="panel">
+      <h2 class="panel__heading">{{ t('game.details') }}</h2>
+      <dl class="panel__rows">
+        <div class="row">
+          <dt class="row__label">{{ t('game.developer') }}</dt>
+          <dd class="row__value">{{ game.developer ?? t('game.unknown') }}</dd>
+        </div>
+        <div class="row">
+          <dt class="row__label">{{ t('game.releaseYear') }}</dt>
+          <dd class="row__value">{{ game.releaseYear ?? t('game.unknown') }}</dd>
+        </div>
+        <div class="row">
+          <dt class="row__label">{{ t('game.link') }}</dt>
+          <!-- Shown as text, never as an anchor: the only way out is the button. -->
+          <dd class="row__value row__value--url">{{ game.playUrl }}</dd>
+        </div>
+      </dl>
+    </section>
+  }
+</section>

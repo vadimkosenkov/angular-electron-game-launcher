@@ -26,3 +26,13 @@ export function describeApiError(error: unknown): string {
 
   return `HTTP ${error.status} ${error.statusText}`;
 }
+
+/**
+ * Whether the server said the thing does not exist.
+ *
+ * Worth telling apart from every other failure: a missing game is a page the
+ * user can understand and act on, while a broken API is not.
+ */
+export function isNotFound(error: unknown): boolean {
+  return error instanceof HttpErrorResponse && error.status === 404;
+}

@@ -1,0 +1,88 @@
+<section class="page scroll-pane" *transloco="let t">
+  <header class="page__header">
+    <h1 class="page__heading">{{ t('discover.title') }}</h1>
+    <p class="page__lede">{{ t('discover.lede') }}</p>
+  </header>
+
+  <div class="controls">
+    <label class="control control--search">
+      <span class="control__label">{{ t('discover.search') }}</span>
+      <input
+        type="search"
+        class="control__input"
+        [value]="store.search()"
+        [placeholder]="t('discover.search')"
+        (input)="onSearch($event)"
+      />
+    </label>
+
+    <label class="control">
+      <span class="control__label">{{ t('discover.genre') }}</span>
+      <select class="control__input" [value]="store.genre() ?? ''" (change)="onGenre($event)">
+        <option value="">{{ t('discover.genreAll') }}</option>
+        @for (genre of store.availableGenres(); track genre) {
+          <option [value]="genre">{{ t(genreLabelKey(genre)) }}</option>
+        }
+      </select>
+    </label>
+
+    <label class="control">
+      <span class="control__label">{{ t('discover.sort') }}</span>
+      <select class="control__input" [value]="store.order()" (change)="onOrder($event)">
+        @for (order of sortOrders; track order) {
+          <option [value]="order">{{ t(sortLabels[order]) }}</option>
+        }
+      </select>
+    </label>
+  </div>
+
+  @if (store.isLoading()) {
+    <p class="notice">{{ t('state.loading') }}</p>
+  } @else if (store.failure(); as failure) {
+    <div class="notice notice--error">
+      <p class="notice__title">{{ t('state.errorTitle') }}</p>
+      <p class="notice__detail">{{ failure }}</p>
+      <button type="button" class="button" (click)="store.load()">{{ t('state.retry') }}</button>
+    </div>
+  } @else {
+    <p class="count">
+      {{ t('discover.counted', { shown: store.visible().length, total: store.all().length }) }}
+    </p>
+
+    @if (store.visible().length === 0) {
+      <div class="notice">
+        <p class="notice__title">{{ t('discover.emptyTitle') }}</p>
+        <p class="notice__detail">{{ t('discover.emptyHint') }}</p>
+        @if (store.isFiltered()) {
+          <button type="button" class="button" (click)="store.resetFilters()">
+            {{ t('discover.reset') }}
+          </button>
+        }
+      </div>
+    } @else {
+      <ul class="grid">
+        @for (game of store.visible(); track game.id) {
+          <li class="grid__cell">
+            <a
+              class="card"
+              [routerLink]="['/games', game.id]"
+              [attr.aria-label]="t('card.open', { title: game.title })"
+              [style.--card-accent]="game.accentColor"
+            >
+              <app-game-cover class="card__cover" [game]="game" />
+              <div class="card__body">
+                <h2 class="card__title">{{ game.title }}</h2>
+                <p class="card__genres">
+                  @for (genre of game.genres; track genre) {
+                    <span class="chip">{{ t(genreLabelKey(genre)) }}</span>
+                  }
+                </p>
+                <p class="card__summary">{{ language.text(game.summary) }}</p>
+              </div>
+            </a>
+          </li>
+        }
+      </ul>
+    }
+  }
+</section>

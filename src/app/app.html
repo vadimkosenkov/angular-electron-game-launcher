@@ -1,66 +1,50 @@
-<header class="titlebar" [class.titlebar--native-controls]="isElectron">
-  <span class="titlebar__name">Game Launcher</span>
-  <span class="titlebar__env" [attr.data-electron]="isElectron">
-    {{ isElectron ? 'Electron shell' : 'Browser' }}
-  </span>
-</header>
+<ng-container *transloco="let t">
+  <header class="titlebar" [class.titlebar--native-controls]="isElectron">
+    <span class="titlebar__name">Game Launcher</span>
+    <span class="titlebar__env" [attr.data-electron]="isElectron">
+      {{ isElectron ? 'Electron shell' : 'Browser' }}
+    </span>
 
-<main class="content">
-  <h1 class="content__heading">Stage 4 &mdash; Electron and Express connected</h1>
-  <p class="content__lede">
-    The catalog interface arrives in the next stage. This page proves the chain is
-    whole: the main process started the API, handed the renderer a token over the
-    context bridge, and everything below came back over HTTP.
-  </p>
+    <!--
+      Moves into the settings page in stage 6, where the choice also becomes
+      persistent. It is here rather than nowhere so the two dictionaries are
+      reachable instead of merely present.
+    -->
+    <div class="langswitch" role="group" aria-label="Language">
+      @for (language of languages; track language) {
+        <button
+          type="button"
+          class="langswitch__option"
+          [class.langswitch__option--active]="currentLanguage() === language"
+          [attr.aria-pressed]="currentLanguage() === language"
+          (click)="useLanguage(language)"
+        >
+          {{ language.toUpperCase() }}
+        </button>
+      }
+    </div>
+  </header>
 
-  <section class="panel">
-    <h2 class="panel__heading">API</h2>
+  <div class="shell">
+    <nav class="sidebar" [attr.aria-label]="t('nav.sectionLibrary')">
+      <p class="sidebar__section">{{ t('nav.sectionLibrary') }}</p>
+      <a
+        class="sidebar__link"
+        routerLink="/discover"
+        routerLinkActive="sidebar__link--active"
+        [routerLinkActiveOptions]="{ exact: false }"
+      >
+        {{ t('nav.discover') }}
+      </a>
 
-    @if (isApiLoading()) {
-      <p class="panel__note">Calling the local API&hellip;</p>
-    }
+      <p class="sidebar__section">{{ t('nav.sectionSystem') }}</p>
+      <a class="sidebar__link" routerLink="/diagnostics" routerLinkActive="sidebar__link--active">
+        {{ t('nav.diagnostics') }}
+      </a>
+    </nav>
 
-    @if (apiFailure(); as failure) {
-      <p class="panel__note panel__note--error">{{ failure }}</p>
-    }
-
-    @if (apiResult(); as result) {
-      <dl class="panel__rows">
-        <div class="row">
-          <dt class="row__label">Health</dt>
-          <dd class="row__value" data-state="ok">
-            {{ result.health.status }}, up {{ result.health.uptimeSeconds }}s
-          </dd>
-        </div>
-        <div class="row">
-          <dt class="row__label">Catalog</dt>
-          <dd class="row__value" data-state="ok">{{ result.games.length }} games</dd>
-        </div>
-      </dl>
-
-      <ul class="games">
-        @for (game of result.games; track game.id) {
-          <li class="games__item">
-            <span class="games__dot" [style.backgroundColor]="game.accentColor"></span>
-            <span class="games__title">{{ game.title }}</span>
-            <span class="games__genres">{{ game.genres.join(', ') }}</span>
-          </li>
-        }
-      </ul>
-    }
-  </section>
-
-  @for (panel of panels; track panel.heading) {
-    <section class="panel">
-      <h2 class="panel__heading">{{ panel.heading }}</h2>
-      <dl class="panel__rows">
-        @for (row of panel.rows; track row.label) {
-          <div class="row">
-            <dt class="row__label">{{ row.label }}</dt>
-            <dd class="row__value" [attr.data-state]="row.state">{{ row.value }}</dd>
-          </div>
-        }
-      </dl>
-    </section>
-  }
-</main>
+    <main class="shell__content">
+      <router-outlet />
+    </main>
+  </div>
+</ng-container>
