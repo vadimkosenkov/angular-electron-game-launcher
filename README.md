@@ -52,24 +52,32 @@ npm run start:browser    # Angular dev server only, opens in the default browser
 ```
 
 `start:electron` runs three processes under `concurrently`: `ng serve` on port
-**4300**, `tsc --watch` for the Node side, and `wait-on` holding Electron back
+**4500**, `tsc --watch` for the Node side, and `wait-on` holding Electron back
 until both the dev server and `dist-node/electron/main.js` exist. No `setTimeout`
 is involved in the wait.
 
-The dev server sits on 4300 rather than the Angular default 4200 so the launcher
-can run alongside other local projects. The port lives in `angular.json` and in
-`shared/dev-config.ts`.
+The dev server sits on 4500, and the API beside it on 4501, rather than on the
+Angular default 4200, so the launcher can run alongside other local projects.
+The ports live in `angular.json`, `proxy.conf.json` and `shared/dev-config.ts`
+-- in configuration rather than behind a command-line flag, so they survive the
+next start.
+
+They were moved off 4300/4301 after a collision with another project on this
+machine that uses 4200, 4201, 4202, 3333 and 4300. Keeping both of ours in one
+contiguous block well clear of that range is what makes the next collision
+unlikely; leaving the port out of `angular.json` would fall back to 4200 and
+collide immediately.
 
 It is pinned to the address `127.0.0.1`, not the name `localhost`, in both
 places. On macOS `localhost` resolves to `::1` first, so a second dev server
 bound to the IPv6 wildcard can take that address while ours holds the IPv4 one:
-both appear to be "on port 4300", neither fails to start, and the window
+both appear to be on the same port, neither fails to start, and the window
 quietly loads the wrong application. With the address named, a real collision
-fails loudly with *Port 4300 is already in use*, which is what a collision
+fails loudly with *Port 4500 is already in use*, which is what a collision
 should do.
 
 The two commands are alternatives, not a pair. Both dev modes need an API on
-the fixed port **4301** -- `start:electron` starts one inside the main process,
+the fixed port **4501** -- `start:electron` starts one inside the main process,
 `start:browser` expects `npm run dev:api` beside it -- and the two use different
 tokens, so running both at once shows `UNAUTHORIZED: Missing or invalid session
 token.` in the browser. Stop one before starting the other.
@@ -176,12 +184,12 @@ inert. The policy is exercised in a production run and when packaged.
 npm run dev:api
 ```
 
-Serves the same API on a fixed port 4301 with a fixed development token, so it
+Serves the same API on a fixed port 4501 with a fixed development token, so it
 can be exercised directly:
 
 ```bash
-curl http://127.0.0.1:4301/api/health
-curl -H "x-launcher-token: dev-session-token" http://127.0.0.1:4301/api/games
+curl http://127.0.0.1:4501/api/health
+curl -H "x-launcher-token: dev-session-token" http://127.0.0.1:4501/api/games
 ```
 
 The browser-only development mode does not call that port. `proxy.conf.json`
@@ -189,7 +197,7 @@ makes the Angular dev server forward `/api` to it, so the page sees the API at
 its own origin:
 
 ```bash
-curl -H "x-launcher-token: dev-session-token" http://localhost:4300/api/games
+curl -H "x-launcher-token: dev-session-token" http://127.0.0.1:4500/api/games
 ```
 
 Without the proxy the page would be making a cross-origin request carrying a
