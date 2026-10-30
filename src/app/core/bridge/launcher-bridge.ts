@@ -68,8 +68,16 @@ export class LauncherBridgeService {
 
     // Browser development mode has no main process to ask. `noopener` keeps
     // the opened page from reaching back through `window.opener`.
-    const opened = globalThis.open(url, '_blank', 'noopener,noreferrer');
-    return opened === null ? 'failed' : 'opened';
+    //
+    // Its return value is deliberately ignored: `window.open` returns null
+    // whenever `noopener` is set, whether or not the page opened, so testing
+    // it would report every successful launch as a failure. There is no way
+    // to get both the opener protection and a verdict, and the protection is
+    // worth more -- a blocked popup is something the browser tells the user
+    // about itself. The packaged launcher never reaches this branch: there
+    // the main process opens the page and says what happened.
+    globalThis.open(url, '_blank', 'noopener,noreferrer');
+    return 'opened';
   }
 }
 
