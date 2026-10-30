@@ -9,6 +9,7 @@ import {
 import { ANGULAR_DEV_SERVER_URL } from '../shared/dev-config';
 import { isHttpsUrl } from '../shared/url';
 import { createAppWindow } from './app-window';
+import { installFileLogging, type FileLog } from './logger';
 import { startLauncherApi, type LauncherApi } from './server-lifecycle';
 
 const isDev = process.argv.includes('--dev');
@@ -25,6 +26,12 @@ const appName = isDev ? 'Game Launcher (dev)' : 'Game Launcher';
 app.setName(appName);
 app.setPath('userData', join(app.getPath('appData'), appName));
 
+// Installed before anything else can report a problem, and after the user
+// data directory has been chosen, since that is where the log goes.
+const log: FileLog = installFileLogging(join(app.getPath('userData'), 'logs'));
+
+registerProcessHandlers();
+
 let api: LauncherApi | undefined;
 let rendererUrl: string | undefined;
 let isShuttingDown = false;
@@ -37,6 +44,29 @@ if (!app.requestSingleInstanceLock()) {
   app.quit();
 } else {
   registerAppEvents();
+}
+
+/**
+ * The last line of defence in the main process.
+ *
+ * An uncaught exception here is not a renderer misbehaving: it is the process
+ * that owns the window, the API and the user's data left in a state nobody
+ * reasoned about. Carrying on would mean a launcher that half works, so this
+ * says what happened, writes it down and stops.
+ *
+ * A rejected promise is not treated the same way. Most of them are a single
+ * failed operation rather than a broken process, and quitting over one would
+ * be a worse bug than the one being reported.
+ */
+function registerProcessHandlers(): void {
+  process.on('uncaughtException', (error) => {
+    console.error('[main] uncaught exception:', error);
+    reportFatal('Game Launcher stopped unexpectedly', error);
+  });
+
+  process.on('unhandledRejection', (reason) => {
+    console.error('[main] unhandled promise rejection:', reason);
+  });
 }
 
 function registerAppEvents(): void {
@@ -161,7 +191,27 @@ function closeApiBeforeQuitting(event: Electron.Event): void {
 }
 
 function reportStartupFailure(error: unknown): void {
+  console.error('[main] startup failed:', error);
+  reportFatal('Game Launcher failed to start', error);
+}
+
+/**
+ * Says what went wrong and where the rest of the story is.
+ *
+ * The log path is in the message because this is the only moment the person
+ * is looking: a packaged application has no terminal, and "an error occurred"
+ * without somewhere to look next is indistinguishable from no message at all.
+ */
+function reportFatal(title: string, error: unknown): void {
   const message = error instanceof Error ? error.message : String(error);
-  dialog.showErrorBox('Game Launcher failed to start', message);
-  app.quit();
+
+  try {
+    dialog.showErrorBox(title, `${message}\n\nDetails were written to:\n${log.filePath}`);
+  } catch (dialogError) {
+    // Before the app is ready a dialog may not be possible; the log already
+    // has the real error, and failing to describe it must not hide it.
+    console.error('[main] could not show the failure dialog:', dialogError);
+  }
+
+  app.exit(1);
 }
