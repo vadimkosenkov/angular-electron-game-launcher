@@ -178,6 +178,69 @@ In development the page comes from the Angular dev server, which sends no
 policy, so the `__CSP_NONCE__` placeholder reaches the browser literally and is
 inert. The policy is exercised in a production run and when packaged.
 
+### Opening a game in the system browser
+
+The only thing the launcher does outside its own window, and the only place a
+compromised renderer could do real damage, so the decision is not made there.
+
+The renderer asks; the **main process decides and acts**. It checks the address
+against the catalog it validated at startup -- an exact-match set of the
+`playUrl` values -- and opens nothing else:
+
+| Asked for | Result |
+| --- | --- |
+| `https://play2048.co/` (in the catalog) | opened |
+| `https://evil.example/` | rejected |
+| `javascript:alert(1)` | rejected |
+| `file:///etc/passwd` | rejected |
+| `https://play2048.co/?x=1` (one character off) | rejected |
+| `42` (not a string) | rejected |
+
+An exact-match set rather than a host or prefix rule: a prefix would let a
+crafted path through, and there is no reason to accept anything but the
+addresses that ship with the application. Every refusal is logged by the main
+process.
+
+The IPC argument is typed `unknown` on arrival, because a compromised renderer
+can invoke the channel with anything at all. The game's address is shown on its
+page as plain text rather than as a link, so the button is the only way out.
+
+### Interface language
+
+Interface labels go through [transloco](https://jsverse.github.io/transloco/);
+the dictionaries are `src/app/core/i18n/en.ts` and `ru.ts`.
+
+Two decisions worth knowing:
+
+- **TypeScript, not JSON.** `ru.ts` declares itself as `Translations`, the type
+  derived from `en.ts`, so a key added to one and forgotten in the other fails
+  to compile instead of surfacing as a raw key in the interface.
+- **No HTTP loader.** Transloco fetches `/assets/i18n/<lang>.json` by default.
+  The dictionaries are imported instead, which makes the switch synchronous,
+  removes a request that could fail in a packaged application, and keeps
+  `connect-src` free of an entry it does not need.
+
+The catalog's own prose is separate: `summary` and `description` carry both
+languages in the data, because they are content rather than translations of the
+interface. `LanguageService` answers "which language is active" for both.
+
+The switch lives in the title bar for now and moves into the settings page in
+stage 6, where the choice also becomes persistent.
+
+### Cover art
+
+The covers are generated, not downloaded. Real cover art belongs to the people
+who made the games, so none of it is shipped here.
+
+Each cover is drawn as inline SVG from the game's own data: the seed is its id,
+so a cover never changes between renders or sessions, the palette comes from
+`accentColor`, and the shape of the pattern comes from the first genre -- which
+is what keeps sixteen generated covers from reading as one repeated texture.
+
+A game may instead carry `coverUrl`, a path relative to the Angular assets
+folder, and that image wins over anything generated. Drop a file in
+`src/assets/` and point the catalog entry at it.
+
 ### Checking the API without Electron
 
 ```bash
@@ -216,7 +279,11 @@ browser-only development mode relies on.
 electron/   Electron main process and preload script
 shared/     Types shared between the Node side and Angular
 server/     Express API, routes, middleware and the catalog
-src/        Angular application
+src/app/
+  core/     Services with no interface of their own: API client, bridge,
+            catalog store, i18n
+  features/ One folder per page: discover, game, diagnostics
+  shared/   Components used by more than one page
 ```
 
 `shared/` is imported as `@shared/*` from Angular and through relative paths
