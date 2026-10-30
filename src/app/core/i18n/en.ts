@@ -7,7 +7,10 @@
  */
 export const en = {
   nav: {
+    label: 'Sections',
     discover: 'Discover',
+    favourites: 'Favourites',
+    settings: 'Settings',
     diagnostics: 'Diagnostics',
     sectionLibrary: 'Library',
     sectionSystem: 'System',
@@ -31,11 +34,43 @@ export const en = {
   card: {
     open: 'Open {{title}}',
   },
+  favourite: {
+    action: 'Favourite {{title}}',
+    save: 'Favourite',
+    saved: 'In favourites',
+  },
+  favourites: {
+    title: 'Favourites',
+    lede: 'The games you kept, most recently added first.',
+    counted: '{{count}} saved',
+    emptyTitle: 'Nothing saved yet',
+    emptyHint: 'Open a game and press the heart to keep it here.',
+    browse: 'Browse the catalog',
+  },
+  settings: {
+    title: 'Settings',
+    lede: 'Saved on this machine as you change them.',
+    language: 'Interface language',
+    languageHint: 'Game descriptions follow the interface language.',
+    theme: 'Theme',
+    themeSystem: 'System',
+    themeLight: 'Light',
+    themeDark: 'Dark',
+    themeFollowing: 'Following the system, currently {{scheme}}.',
+    themeFixed: 'Fixed, whatever the system is set to.',
+    scheme: {
+      light: 'light',
+      dark: 'dark',
+    },
+    unreadTitle: 'Your saved settings could not be read',
+  },
   game: {
     back: 'Back to catalog',
     play: 'Play',
     playHint: 'Opens in your browser',
     opening: 'Opening…',
+    playRejected: 'The launcher refused to open that address.',
+    playFailed: 'The system browser could not be opened.',
     about: 'About',
     details: 'Details',
     developer: 'Developer',
@@ -69,6 +104,7 @@ export const en = {
     loading: 'Loading the catalog…',
     errorTitle: 'The catalog could not be loaded',
     retry: 'Try again',
+    saveFailed: 'That change was not saved.',
   },
 };
 

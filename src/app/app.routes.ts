@@ -12,8 +12,16 @@ export const routes: Routes = [
     loadComponent: () => import('./features/discover/discover').then((m) => m.Discover),
   },
   {
+    path: 'favourites',
+    loadComponent: () => import('./features/favourites/favourites').then((m) => m.Favourites),
+  },
+  {
     path: 'games/:id',
     loadComponent: () => import('./features/game/game-page').then((m) => m.GamePage),
+  },
+  {
+    path: 'settings',
+    loadComponent: () => import('./features/settings/settings').then((m) => m.Settings),
   },
   {
     path: 'diagnostics',

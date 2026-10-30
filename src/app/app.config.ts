@@ -16,6 +16,7 @@ import { sessionTokenInterceptor } from './core/api/session-token.interceptor';
 import { SessionTokenService } from './core/api/session-token.service';
 import { DEFAULT_LANGUAGE } from './core/i18n/language.service';
 import { StaticTranslationLoader } from './core/i18n/translation.loader';
+import { UserDataStore } from './core/user-data/user-data.store';
 import { routes } from './app.routes';
 
 export const appConfig: ApplicationConfig = {
@@ -46,8 +47,20 @@ export const appConfig: ApplicationConfig = {
       loader: StaticTranslationLoader,
     }),
 
-    // Bootstrap waits for this promise, so the first component renders with a
-    // token already in hand and no request can leave without one.
-    provideAppInitializer(() => inject(SessionTokenService).load()),
+    // Bootstrap waits for these, so the first component renders with a token
+    // already in hand -- no request can leave without one -- and with the
+    // user's own settings rather than the defaults standing in for them.
+    //
+    // They run in order rather than together: the second one is an API call,
+    // and the first one is what makes an API call possible. Reading the
+    // settings before anything renders is also what keeps a write from
+    // sending a default back in a field the user did not touch.
+    provideAppInitializer(async () => {
+      const sessionToken = inject(SessionTokenService);
+      const userData = inject(UserDataStore);
+
+      await sessionToken.load();
+      await userData.load();
+    }),
   ],
 };

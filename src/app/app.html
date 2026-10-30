@@ -4,29 +4,23 @@
     <span class="titlebar__env" [attr.data-electron]="isElectron">
       {{ isElectron ? 'Electron shell' : 'Browser' }}
     </span>
-
-    <!--
-      Moves into the settings page in stage 6, where the choice also becomes
-      persistent. It is here rather than nowhere so the two dictionaries are
-      reachable instead of merely present.
-    -->
-    <div class="langswitch" role="group" aria-label="Language">
-      @for (language of languages; track language) {
-        <button
-          type="button"
-          class="langswitch__option"
-          [class.langswitch__option--active]="currentLanguage() === language"
-          [attr.aria-pressed]="currentLanguage() === language"
-          (click)="useLanguage(language)"
-        >
-          {{ language.toUpperCase() }}
-        </button>
-      }
-    </div>
   </header>
 
+  <!--
+    A failed write is reported in the shell rather than on a page, because the
+    click that failed can happen anywhere: a heart on a catalog card, a theme
+    on the settings page. The store has already put the old value back by the
+    time this appears, so it explains a change that visibly undid itself.
+  -->
+  @if (saveFailure(); as message) {
+    <p class="banner" role="status">
+      <span class="banner__title">{{ t('state.saveFailed') }}</span>
+      <span class="banner__detail">{{ message }}</span>
+    </p>
+  }
+
   <div class="shell">
-    <nav class="sidebar" [attr.aria-label]="t('nav.sectionLibrary')">
+    <nav class="sidebar" [attr.aria-label]="t('nav.label')">
       <p class="sidebar__section">{{ t('nav.sectionLibrary') }}</p>
       <a
         class="sidebar__link"
@@ -36,8 +30,17 @@
       >
         {{ t('nav.discover') }}
       </a>
+      <a class="sidebar__link" routerLink="/favourites" routerLinkActive="sidebar__link--active">
+        {{ t('nav.favourites') }}
+        @if (favouriteCount() > 0) {
+          <span class="sidebar__count">{{ favouriteCount() }}</span>
+        }
+      </a>
 
       <p class="sidebar__section">{{ t('nav.sectionSystem') }}</p>
+      <a class="sidebar__link" routerLink="/settings" routerLinkActive="sidebar__link--active">
+        {{ t('nav.settings') }}
+      </a>
       <a class="sidebar__link" routerLink="/diagnostics" routerLinkActive="sidebar__link--active">
         {{ t('nav.diagnostics') }}
       </a>

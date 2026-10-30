@@ -2,11 +2,14 @@ import { readFile } from 'node:fs/promises';
 
 import { z } from 'zod';
 
-import { GAME_TAGS, GENRES, type Game } from '../../shared/game.model';
+import {
+  GAME_ID_MAX_LENGTH,
+  GAME_ID_PATTERN,
+  GAME_TAGS,
+  GENRES,
+  type Game,
+} from '../../shared/game.model';
 import { isHttpsUrl } from '../../shared/url';
-
-/** Lowercase slug: favourites are stored by id, so the format is pinned. */
-const GAME_ID_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
 const localizedTextSchema = z.object({
   en: z.string().min(1),
@@ -14,7 +17,7 @@ const localizedTextSchema = z.object({
 });
 
 const gameSchema = z.object({
-  id: z.string().regex(GAME_ID_PATTERN),
+  id: z.string().max(GAME_ID_MAX_LENGTH).regex(GAME_ID_PATTERN),
   title: z.string().min(1),
   genres: z.array(z.enum(GENRES)).min(1),
   tags: z.array(z.enum(GAME_TAGS)),

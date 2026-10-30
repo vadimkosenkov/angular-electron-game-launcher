@@ -1,7 +1,8 @@
 # Game Launcher
 
-A desktop catalog of browser games: browse, search, filter, open a game page and
-launch the game in the system browser. Built as a learning project around
+A desktop catalog of browser games: browse, search, filter, keep favourites,
+open a game page and launch the game in the system browser. Built as a learning
+project around
 **Angular 22 + Electron 45 + Express 5 + JSON storage**.
 
 > The launcher does not install or run games. It is a catalog that hands a
@@ -98,6 +99,12 @@ process therefore names itself explicitly:
 Development data is deliberately separate, so experiments and corrupted-file
 tests never touch real favourites.
 
+Browser-only development has no Electron to ask, so `npm run dev:api` writes to
+`.dev-user-data/` in the repository instead. That directory is gitignored.
+
+Favourites and settings live in `user-data.json` in whichever of those
+directories applies. See [User data on disk](#user-data-on-disk).
+
 ## Building
 
 ```bash
@@ -117,9 +124,20 @@ to guess what came back.
 | `GET` | `/api/health` | none | `200` `{ status, uptimeSeconds }` | — |
 | `GET` | `/api/games` | token | `200` the whole catalog | `401` |
 | `GET` | `/api/games/:id` | token | `200` one game | `400` bad slug, `404` unknown id, `401` |
+| `GET` | `/api/user-data` | token | `200` `{ settings, favourites }` | `401` |
+| `PUT` | `/api/user-data/settings` | token | `200` the whole user data | `400` unknown language, theme or extra key, `401` |
+| `PUT` | `/api/user-data/favourites/:gameId` | token | `200` the whole user data | `400` bad slug, `404` unknown id, `401` |
+| `DELETE` | `/api/user-data/favourites/:gameId` | token | `200` the whole user data | `400` bad slug, `404` unknown id, `401` |
 
 Anything else under `/api` answers `404` with a JSON body rather than Express's
 default HTML page.
+
+Every write answers with the whole of the user's data rather than the part it
+touched. It is a few dozen bytes, and it means the renderer replaces its state
+with the server's answer instead of merging into it.
+
+`PUT` and `DELETE` on a favourite are idempotent: adding one twice, or removing
+one that was never there, succeeds and writes nothing.
 
 ### Why a local HTTP server is not automatically safe
 
@@ -224,8 +242,104 @@ The catalog's own prose is separate: `summary` and `description` carry both
 languages in the data, because they are content rather than translations of the
 interface. `LanguageService` answers "which language is active" for both.
 
-The switch lives in the title bar for now and moves into the settings page in
-stage 6, where the choice also becomes persistent.
+The switch is on the settings page, and the choice is saved: `LanguageService`
+derives the active language from the stored settings rather than holding a
+signal of its own, so there is one fact in one place instead of a copy on each
+side.
+
+### User data on disk
+
+Favourites and the two settings live in one small JSON file, written by the
+server and never by the renderer:
+
+```json
+{
+  "settings": { "language": "ru", "theme": "system" },
+  "favourites": ["hexgl", "2048"]
+}
+```
+
+**Why not `localStorage`.** It is scoped to an origin, and in production the
+launcher's origin includes a port the operating system hands out fresh on every
+start. Favourites kept there would appear to vanish at each launch. A file in
+the user-data directory does not care what port the server got.
+
+**Favourites are ids, not copies.** The catalog decides what a game is; this
+list only points at it. A title corrected in a later version shows corrected
+here, with no migration, and an id for a game that was dropped from the catalog
+is discarded when the file is read.
+
+**A damaged file is repaired, not refused.** The catalog aborts startup if its
+file is wrong, because serving half a catalog is worse than not starting. User
+data gets the opposite treatment: the person's favourites exist nowhere else,
+so every field that can be salvaged is, and only the unreadable parts fall back
+to a default. A file that is not JSON at all is moved to
+`user-data.json.corrupt-<timestamp>` rather than overwritten -- it may still be
+recoverable by hand, and silently replacing it is the one failure nobody could
+undo.
+
+| What the file holds | What happens |
+| --- | --- |
+| nothing (first run) | defaults; no file is written until something changes |
+| not JSON at all | moved aside, defaults loaded, warning logged |
+| an unknown language or theme | that field falls back, the rest is kept, warning logged |
+| a favourite that is not a game | that entry is dropped, the rest is kept |
+| cannot be read at all (permissions, I/O) | startup fails loudly |
+
+That last row is deliberate and is the one case that does stop the launcher. A
+file we cannot read is not a file we know to be damaged: starting with defaults
+would leave the next write free to replace data that was probably still intact.
+Refusing to start is recoverable; overwriting is not.
+
+**Writes are atomic.** `writeFile` straight onto the real path is not: a crash
+partway through leaves a truncated file. Each write goes to
+`user-data.json.<random>.tmp` and is then `rename`d over the target, which
+within one filesystem replaces it in a single step -- a reader sees the old
+contents or the new ones, never half of each. The temporary file is removed if
+the rename fails. What this does not do is `fsync` the directory, so a power
+cut in the seconds after a write can still lose that change; a file that is
+never corrupt is the part worth paying for, an fsync per click is not.
+
+**Nothing from a request reaches the path.** The directory is handed to the
+server at startup and the file name is a constant. There is no `..` to filter,
+because there is nothing to concatenate -- which is a stronger guarantee than
+sanitising a name correctly every time.
+
+**The settings are read before anything renders.** Bootstrap waits for them,
+alongside the session token it already waited for. A write to the settings
+replaces the whole object, so a renderer that had not finished reading would
+send a default back in the field the user did not touch and overwrite the
+saved value with it -- loading first removes that window instead of narrowing
+it, and the interface is never briefly in the wrong language or theme. If the
+read fails outright the settings controls are disabled until a retry succeeds,
+because writing over values we never managed to read is the one thing that
+loses them. Favourites are unaffected either way: they are changed one id at a
+time, so the server merges rather than replaces.
+
+**The renderer guesses, the server decides.** Pressing a heart fills it at
+once and sends the request afterwards. If the write fails, the store puts the
+previous state back and the shell shows a banner explaining it; on success the
+server's own answer replaces the guess, which is also how the renderer learns
+the resulting order. Waiting for a round trip to a server on this machine would
+make every heart feel slow to protect against a case that ends in an error
+message either way.
+
+### Theme
+
+Three choices -- system, light, dark -- stored as one of those three words, not
+as a resolved colour.
+
+`system` means "ask the operating system and keep asking": `ThemeService`
+reads `prefers-color-scheme` and listens for changes, so a launcher left open
+across the moment macOS switches appearance follows it. The resolved answer is
+written to `<html data-theme>`, and `src/styles.scss` defines the colour tokens
+twice, once under each value. No component has a light-mode branch; they all
+read the same custom properties.
+
+The bare `:root` block covers the paint before Angular has started at all, and
+it is the dark palette -- a light-mode user sees one dark frame rather than a
+flash of white. By the time the first component renders the stored preference
+has already been read, so the theme does not change under them.
 
 ### Cover art
 
@@ -253,7 +367,13 @@ can be exercised directly:
 ```bash
 curl http://127.0.0.1:4501/api/health
 curl -H "x-launcher-token: dev-session-token" http://127.0.0.1:4501/api/games
+curl -H "x-launcher-token: dev-session-token" http://127.0.0.1:4501/api/user-data
+curl -X PUT -H "x-launcher-token: dev-session-token" \
+  http://127.0.0.1:4501/api/user-data/favourites/hexgl
 ```
+
+Those writes land in `.dev-user-data/user-data.json`, so the file can be
+inspected, damaged on purpose and watched being repaired.
 
 The browser-only development mode does not call that port. `proxy.conf.json`
 makes the Angular dev server forward `/api` to it, so the page sees the API at
@@ -269,20 +389,21 @@ refused -- which is exactly the behaviour the production setup depends on.
 Proxying keeps development same-origin, like production, instead of weakening
 the server to accommodate it.
 
-The server module never imports Electron. It receives its port, token and
-catalog path as arguments, which is what makes this possible and what the
-browser-only development mode relies on.
+The server module never imports Electron. It receives its port, token, catalog
+path and user-data directory as arguments, which is what makes this possible
+and what the browser-only development mode relies on.
 
 ## Project layout
 
 ```
 electron/   Electron main process and preload script
 shared/     Types shared between the Node side and Angular
-server/     Express API, routes, middleware and the catalog
+server/     Express API, routes, middleware, the catalog and the user's data
 src/app/
   core/     Services with no interface of their own: API client, bridge,
-            catalog store, i18n
-  features/ One folder per page: discover, game, diagnostics
+            catalog store, user data, i18n, theme
+  features/ One folder per page: discover, favourites, game, settings,
+            diagnostics
   shared/   Components used by more than one page
 ```
 

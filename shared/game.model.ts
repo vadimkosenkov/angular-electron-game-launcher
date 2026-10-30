@@ -39,6 +39,20 @@ export type Language = (typeof LANGUAGES)[number];
  */
 export type LocalizedText = Record<Language, string>;
 
+/**
+ * The shape of a game id, in one place.
+ *
+ * Three separate things depend on it now: the catalog schema that validates
+ * what we ship, the games route that validates a lookup key, and the
+ * favourites route that validates an id arriving from the renderer. A slug
+ * format that three files each describe slightly differently is a bug waiting
+ * for one of them to be the loosest.
+ */
+export const GAME_ID_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+
+/** Bound on the id's length, so a lookup key cannot be arbitrarily long. */
+export const GAME_ID_MAX_LENGTH = 64;
+
 export interface Game {
   /** Stable slug. Favourites are stored by this value, so it must not change. */
   readonly id: string;

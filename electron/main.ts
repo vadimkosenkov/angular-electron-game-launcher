@@ -68,7 +68,11 @@ function registerAppEvents(): void {
  * than made unlikely.
  */
 async function startLauncher(): Promise<void> {
-  api = await startLauncherApi({ isDev });
+  // `app.getPath('userData')` is the per-user, per-application directory the
+  // platform set aside for exactly this. It was already pointed at a directory
+  // of our own above, which is also what keeps a development run from writing
+  // into the favourites of an installed copy.
+  api = await startLauncherApi({ isDev, userDataDir: app.getPath('userData') });
 
   // In development the page comes from ng serve, which proxies /api to the
   // server started above. In production this server serves the page as well,

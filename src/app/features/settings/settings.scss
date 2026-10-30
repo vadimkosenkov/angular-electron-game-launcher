@@ -1,0 +1,88 @@
+.field {
+  max-width: 520px;
+  margin: 0 0 26px;
+  padding: 0;
+  border: 0;
+
+  // `disabled` on the fieldset already stops the inputs responding; this is
+  // so the control does not look available while it is not.
+  &:disabled {
+    opacity: 0.5;
+  }
+}
+
+.field:disabled .segmented__option {
+  cursor: default;
+}
+
+.field__label {
+  padding: 0;
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.field__hint {
+  margin: 8px 0 0;
+  color: var(--text-secondary);
+  font-size: 12.5px;
+}
+
+.segmented {
+  display: inline-flex;
+  gap: 2px;
+  margin-top: 8px;
+  padding: 3px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  background: var(--surface-sunken);
+}
+
+.segmented__option {
+  position: relative;
+  border-radius: calc(var(--radius-sm) - 2px);
+  cursor: pointer;
+
+  &--on .segmented__text {
+    background: var(--surface-raised);
+    color: var(--text-primary);
+    box-shadow: var(--shadow-card);
+  }
+}
+
+/*
+ * The input stays in the accessibility tree and keeps focus; it is only moved
+ * out of sight. `display: none` or `visibility: hidden` would take it out of
+ * the tab order and out of the radio group's keyboard handling with it.
+ */
+.segmented__input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.segmented__text {
+  display: block;
+  padding: 5px 14px;
+  border-radius: calc(var(--radius-sm) - 2px);
+  color: var(--text-secondary);
+  font-size: 13px;
+  transition:
+    color var(--motion-fast) ease,
+    background-color var(--motion-fast) ease;
+
+  .segmented__option:hover & {
+    color: var(--text-primary);
+  }
+
+  /* The ring has to be drawn here: the focused input itself is invisible. */
+  .segmented__input:focus-visible + & {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+  }
+}

@@ -1,0 +1,31 @@
+<section class="page scroll-pane" *transloco="let t">
+  <header class="page__header">
+    <h1 class="page__heading">{{ t('favourites.title') }}</h1>
+    <p class="page__lede">{{ t('favourites.lede') }}</p>
+  </header>
+
+  @if (isLoading()) {
+    <p class="notice">{{ t('state.loading') }}</p>
+  } @else if (failure(); as message) {
+    <div class="notice notice--error">
+      <p class="notice__title">{{ t('state.errorTitle') }}</p>
+      <p class="notice__detail">{{ message }}</p>
+    </div>
+  } @else if (games().length === 0) {
+    <div class="notice">
+      <p class="notice__title">{{ t('favourites.emptyTitle') }}</p>
+      <p class="notice__detail">{{ t('favourites.emptyHint') }}</p>
+      <a class="button" routerLink="/discover">{{ t('favourites.browse') }}</a>
+    </div>
+  } @else {
+    <p class="count">{{ t('favourites.counted', { count: games().length }) }}</p>
+
+    <ul class="grid">
+      @for (game of games(); track game.id) {
+        <li class="grid__cell">
+          <app-game-card [game]="game" />
+        </li>
+      }
+    </ul>
+  }
+</section>

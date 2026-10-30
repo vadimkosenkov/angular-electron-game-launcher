@@ -1,11 +1,11 @@
-import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 
 import { TranslocoDirective } from '@jsverse/transloco';
-import { LANGUAGES, type Language } from '@shared/game.model';
 
 import { LauncherBridgeService } from './core/bridge/launcher-bridge';
-import { LanguageService } from './core/i18n/language.service';
+import { ThemeService } from './core/theme/theme.service';
+import { UserDataStore } from './core/user-data/user-data.store';
 
 /**
  * The window frame: title bar, navigation, and whatever the router puts in the
@@ -20,13 +20,19 @@ import { LanguageService } from './core/i18n/language.service';
 })
 export class App {
   private readonly launcher = inject(LauncherBridgeService);
-  private readonly language = inject(LanguageService);
+  private readonly userData = inject(UserDataStore);
 
   protected readonly isElectron = this.launcher.isElectron;
-  protected readonly languages = LANGUAGES;
-  protected readonly currentLanguage = this.language.current;
 
-  protected useLanguage(language: Language): void {
-    this.language.use(language);
+  /** Shown next to the navigation entry, so the count is visible from anywhere. */
+  protected readonly favouriteCount = computed(() => this.userData.favouriteIds().length);
+
+  protected readonly saveFailure = this.userData.saveFailure;
+
+  constructor() {
+    // Asked for purely to bring it into existence. A root-provided service is
+    // created on first injection, and nothing else injects this one: the theme
+    // is applied by an effect inside it, not read by any component.
+    inject(ThemeService);
   }
 }

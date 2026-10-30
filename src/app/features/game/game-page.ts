@@ -10,6 +10,7 @@ import { describeApiError, isNotFound } from '../../core/api/api-error';
 import { ApiClient } from '../../core/api/api.client';
 import { LauncherBridgeService } from '../../core/bridge/launcher-bridge';
 import { LanguageService } from '../../core/i18n/language.service';
+import { FavouriteButton } from '../../shared/favourite-button/favourite-button';
 import { GameCover } from '../../shared/game-cover/game-cover';
 
 type PageState =
@@ -31,7 +32,7 @@ type PlayState = 'idle' | 'opening' | 'rejected' | 'failed';
 @Component({
   selector: 'app-game-page',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [GameCover, RouterLink, TranslocoDirective],
+  imports: [FavouriteButton, GameCover, RouterLink, TranslocoDirective],
   styleUrl: './game-page.scss',
   templateUrl: './game-page.html',
 })
