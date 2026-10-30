@@ -1,7 +1,8 @@
 import { Injectable, isDevMode } from '@angular/core';
 
-import type { LauncherBridge } from '@shared/bridge.model';
+import type { LauncherBridge, OpenExternalOutcome } from '@shared/bridge.model';
 import { DEV_SESSION_TOKEN } from '@shared/dev-config';
+import { isHttpsUrl } from '@shared/url';
 
 /** Node globals that must never be reachable from the page's own scope. */
 const NODE_GLOBALS = ['require', 'process', 'module', 'Buffer', 'global'] as const;
@@ -9,9 +10,8 @@ const NODE_GLOBALS = ['require', 'process', 'module', 'Buffer', 'global'] as con
 /**
  * Single point of access to whatever the preload script exposed.
  *
- * Later stages extend the bridge with the API base URL, the session token and
- * `openExternal`; keeping every read of `window.launcher` in one place means
- * the rest of the application never has to know Electron exists.
+ * Keeping every read of `window.launcher` in one place means the rest of the
+ * application never has to know Electron exists.
  */
 @Injectable({ providedIn: 'root' })
 export class LauncherBridgeService {
@@ -46,6 +46,38 @@ export class LauncherBridgeService {
       return DEV_SESSION_TOKEN;
     }
     throw new Error('No Electron bridge is available, so the API cannot be reached.');
+  }
+
+  /**
+   * Opens a game outside the launcher.
+   *
+   * Inside Electron the main process decides and acts; this call only reports
+   * what it decided. The https test here is not that decision -- it cannot be,
+   * since this code runs in the part of the application an attacker would
+   * control. It is here so the browser fallback below never hands a strange
+   * URL to `window.open`.
+   */
+  async openGame(url: string): Promise<OpenExternalOutcome> {
+    if (!isHttpsUrl(url)) {
+      return 'rejected';
+    }
+
+    if (this.bridge !== null) {
+      return this.bridge.openExternal(url);
+    }
+
+    // Browser development mode has no main process to ask. `noopener` keeps
+    // the opened page from reaching back through `window.opener`.
+    //
+    // Its return value is deliberately ignored: `window.open` returns null
+    // whenever `noopener` is set, whether or not the page opened, so testing
+    // it would report every successful launch as a failure. There is no way
+    // to get both the opener protection and a verdict, and the protection is
+    // worth more -- a blocked popup is something the browser tells the user
+    // about itself. The packaged launcher never reaches this branch: there
+    // the main process opens the page and says what happened.
+    globalThis.open(url, '_blank', 'noopener,noreferrer');
+    return 'opened';
   }
 }
 

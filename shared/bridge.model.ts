@@ -21,6 +21,17 @@ export type SessionTokenChannel = 'launcher:session-token';
 
 export const SESSION_TOKEN_CHANNEL: SessionTokenChannel = 'launcher:session-token';
 
+/**
+ * Name of the IPC channel the renderer uses to ask for a game to be opened in
+ * the system browser. Written out in the preload for the same reason as above.
+ */
+export type OpenExternalChannel = 'launcher:open-external';
+
+export const OPEN_EXTERNAL_CHANNEL: OpenExternalChannel = 'launcher:open-external';
+
+/** Why an open was refused, or that it went ahead. */
+export type OpenExternalOutcome = 'opened' | 'rejected' | 'failed';
+
 export interface LauncherBridge {
   /** Always `true`. Lets the renderer tell Electron from a plain browser. */
   readonly isElectron: true;
@@ -34,6 +45,15 @@ export interface LauncherBridge {
    * where any process owned by this user can read it with `ps`.
    */
   getSessionToken(): Promise<string>;
+  /**
+   * Asks the main process to open a game in the system browser.
+   *
+   * The renderer passes a URL and gets a verdict; it never performs the open
+   * itself. The decision is made in the main process against the catalog it
+   * validated at startup, because the renderer is precisely the part whose
+   * copy of that catalog cannot be trusted.
+   */
+  openExternal(url: string): Promise<OpenExternalOutcome>;
 }
 
 export interface RuntimeVersions {

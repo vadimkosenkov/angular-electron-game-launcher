@@ -1,0 +1,65 @@
+@if (imageUrl(); as source) {
+  <img class="cover__image" [src]="source" [alt]="game().title" loading="lazy" />
+} @else {
+  <svg
+    class="cover__art"
+    [attr.viewBox]="'0 0 ' + width + ' ' + height"
+    preserveAspectRatio="xMidYMid slice"
+    aria-hidden="true"
+    focusable="false"
+  >
+    <defs>
+      <linearGradient [attr.id]="gradientId()" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0" [attr.stop-color]="art().accent" stop-opacity="0.55" />
+        <stop offset="1" [attr.stop-color]="art().accent" stop-opacity="0.08" />
+      </linearGradient>
+    </defs>
+
+    <rect [attr.width]="width" [attr.height]="height" [attr.fill]="'url(#' + gradientId() + ')'" />
+
+    <g [attr.fill]="art().accent">
+      @for (shape of art().shapes; track $index) {
+        @switch (shape.kind) {
+          @case ('circle') {
+            <circle
+              [attr.cx]="shape.x"
+              [attr.cy]="shape.y"
+              [attr.r]="shape.size / 2"
+              [attr.opacity]="shape.opacity"
+            />
+          }
+          @case ('rect') {
+            <rect
+              [attr.x]="shape.x - shape.size / 2"
+              [attr.y]="shape.y - shape.size / 2"
+              [attr.width]="shape.size"
+              [attr.height]="shape.size"
+              [attr.opacity]="shape.opacity"
+              [attr.transform]="'rotate(' + shape.rotation + ' ' + shape.x + ' ' + shape.y + ')'"
+            />
+          }
+          @case ('polygon') {
+            <polygon
+              [attr.points]="polygonPoints(shape.size)"
+              [attr.opacity]="shape.opacity"
+              [attr.transform]="
+                'translate(' + shape.x + ' ' + shape.y + ') rotate(' + shape.rotation + ')'
+              "
+            />
+          }
+        }
+      }
+    </g>
+
+    <text
+      class="cover__monogram"
+      [attr.x]="width / 2"
+      [attr.y]="height / 2"
+      text-anchor="middle"
+      dominant-baseline="central"
+      [attr.fill]="art().accent"
+    >
+      {{ art().monogram }}
+    </text>
+  </svg>
+}

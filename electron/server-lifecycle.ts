@@ -8,6 +8,12 @@ export interface LauncherApi {
   /** Origin the API is reachable at. In production the window loads it too. */
   readonly baseUrl: string;
   readonly sessionToken: string;
+  /**
+   * True only for a URL that is the play address of a game in the shipped
+   * catalog. This is the allow-list behind `shell.openExternal`: the renderer
+   * can ask for an address, but only one already on this list is ever opened.
+   */
+  isPlayableUrl(url: string): boolean;
   close(): Promise<void>;
 }
 
@@ -39,9 +45,15 @@ export async function startLauncherApi(options: StartLauncherApiOptions): Promis
       : { staticRoot: join(__dirname, '../../dist/game-launcher/browser') }),
   });
 
+  // Built once from the validated catalog. An exact-match set rather than a
+  // pattern: a prefix or hostname rule would let a crafted path through, and
+  // there is no reason to accept anything but the addresses we ship.
+  const playableUrls = new Set(server.catalog.games.map((game) => game.playUrl));
+
   return {
     baseUrl: server.url,
     sessionToken,
+    isPlayableUrl: (url) => playableUrls.has(url),
     close: server.close,
   };
 }

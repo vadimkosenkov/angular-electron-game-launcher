@@ -2,7 +2,7 @@ import { once } from 'node:events';
 import { createServer, type Server } from 'node:http';
 
 import { createApiApp } from './app';
-import { loadCatalog } from './storage/catalog.store';
+import { loadCatalog, type Catalog } from './storage/catalog.store';
 
 export interface ApiServerOptions {
   readonly catalogPath: string;
@@ -19,6 +19,12 @@ export interface ApiServerOptions {
 export interface ApiServer {
   readonly url: string;
   readonly port: number;
+  /**
+   * The catalog this server validated at startup. Exposed so the main process
+   * can answer "is this a game we actually ship?" without reading the file a
+   * second time, and without trusting the renderer's copy of it.
+   */
+  readonly catalog: Catalog;
   close(): Promise<void>;
 }
 
@@ -54,6 +60,7 @@ export async function startApiServer(options: ApiServerOptions): Promise<ApiServ
   return {
     url: `http://${host}:${address.port}`,
     port: address.port,
+    catalog,
     close: () => closeServer(server),
   };
 }

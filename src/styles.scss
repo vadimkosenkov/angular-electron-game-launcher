@@ -5,7 +5,10 @@
 
   --surface-base: #0f1115;
   --surface-raised: #171a21;
+  --surface-sunken: #0b0d11;
+  --surface-hover: #1d212a;
   --border-subtle: #262a33;
+  --border-strong: #343a46;
 
   --text-primary: #e7eaf1;
   --text-secondary: #959dad;
@@ -18,9 +21,33 @@
   --radius-md: 10px;
   --radius-lg: 14px;
   --titlebar-height: 52px;
+  --sidebar-width: 216px;
+
+  --shadow-card: 0 1px 2px rgb(0 0 0 / 40%), 0 8px 24px rgb(0 0 0 / 28%);
+
+  /* One place to slow everything down for people who ask the system to. */
+  --motion-fast: 120ms;
+  --motion-medium: 220ms;
 
   --font-sans: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', sans-serif;
+  --font-display: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', sans-serif;
   --font-mono: ui-monospace, 'SF Mono', 'JetBrains Mono', monospace;
+}
+
+/* Animation is decoration here, so it is the first thing to go. */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --motion-fast: 0ms;
+    --motion-medium: 0ms;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }
 
 * {
@@ -47,4 +74,11 @@ body {
 app-root {
   display: block;
   height: 100%;
+}
+
+/* The window itself never scrolls; `.scroll-pane` is what does. */
+.scroll-pane {
+  overflow-y: auto;
+  scrollbar-color: var(--border-strong) transparent;
+  scrollbar-width: thin;
 }
