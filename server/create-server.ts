@@ -12,6 +12,8 @@ export interface ApiServerOptions {
   /** Loopback only. Binding 0.0.0.0 would publish the API to the network. */
   readonly host?: string;
   readonly allowedOrigins?: readonly string[];
+  /** Built Angular bundle to serve alongside the API. See ApiAppOptions. */
+  readonly staticRoot?: string;
 }
 
 export interface ApiServer {
@@ -37,6 +39,7 @@ export async function startApiServer(options: ApiServerOptions): Promise<ApiServ
     catalog,
     sessionToken: options.sessionToken,
     allowedOrigins: options.allowedOrigins ?? [],
+    ...(options.staticRoot === undefined ? {} : { staticRoot: options.staticRoot }),
   });
 
   const server = createServer(app);

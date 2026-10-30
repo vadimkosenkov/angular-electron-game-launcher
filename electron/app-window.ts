@@ -1,22 +1,16 @@
 import { BrowserWindow } from 'electron';
 import { join } from 'node:path';
 
-import { ANGULAR_DEV_SERVER_URL } from '../shared/dev-config';
-
 export interface AppWindowOptions {
-  /** Passed explicitly through `--dev`, never guessed from NODE_ENV. */
-  readonly isDev: boolean;
+  /**
+   * Where the renderer comes from: the Angular dev server in development, the
+   * local Express server in production. Either way it is a single origin the
+   * window is then pinned to.
+   */
+  readonly targetUrl: string;
 }
 
 export function createAppWindow(options: AppWindowOptions): BrowserWindow {
-  if (!options.isDev) {
-    // In production the window is served by the local Express server, which is
-    // added in stage 4. Failing loudly beats opening a window onto nothing.
-    throw new Error(
-      'Production window is not wired yet (stage 4). Use "npm run start:electron".',
-    );
-  }
-
   const window = new BrowserWindow({
     width: 1280,
     height: 820,
@@ -45,8 +39,15 @@ export function createAppWindow(options: AppWindowOptions): BrowserWindow {
 
   window.once('ready-to-show', () => window.show());
 
-  applyNavigationGuards(window, ANGULAR_DEV_SERVER_URL);
-  void window.loadURL(ANGULAR_DEV_SERVER_URL);
+  // A preload script that fails to load does so quietly: the page keeps
+  // working, just without the bridge, and looks exactly like a browser. This
+  // turns that into something impossible to miss.
+  window.webContents.on('preload-error', (_event, preloadPath, error) => {
+    console.error(`[main] preload script failed to load: ${preloadPath}\n`, error);
+  });
+
+  applyNavigationGuards(window, options.targetUrl);
+  void window.loadURL(options.targetUrl);
 
   return window;
 }

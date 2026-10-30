@@ -105,3 +105,45 @@
   &[data-state='ok'] { color: var(--state-ok); }
   &[data-state='danger'] { color: var(--state-danger); }
 }
+
+.panel__note {
+  margin: 0;
+  padding: 14px 20px;
+  color: var(--text-secondary);
+
+  &--error {
+    color: var(--state-danger);
+    font-family: var(--font-mono);
+    font-size: 12.5px;
+  }
+}
+
+.games {
+  margin: 0;
+  padding: 4px 0 10px;
+  border-top: 1px solid var(--border-subtle);
+  list-style: none;
+}
+
+.games__item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 5px 20px;
+}
+
+.games__dot {
+  flex: 0 0 auto;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.games__title {
+  flex: 1 1 auto;
+}
+
+.games__genres {
+  color: var(--text-secondary);
+  font-size: 12px;
+}

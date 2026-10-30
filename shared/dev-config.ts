@@ -8,7 +8,14 @@
  */
 export const ANGULAR_DEV_SERVER_PORT = 4300;
 
-export const ANGULAR_DEV_SERVER_URL = `http://localhost:${ANGULAR_DEV_SERVER_PORT}`;
+/**
+ * Addressed as 127.0.0.1 rather than localhost on purpose. On macOS localhost
+ * resolves to ::1 first, and a second dev server bound to the IPv6 wildcard
+ * can take that address while ours holds the IPv4 one -- both "on port 4300",
+ * with the window quietly loading the wrong application. Naming the address
+ * removes the ambiguity; `angular.json` pins the dev server to the same one.
+ */
+export const ANGULAR_DEV_SERVER_URL = `http://127.0.0.1:${ANGULAR_DEV_SERVER_PORT}`;
 
 /**
  * Standalone API used by the browser-only dev mode (`npm run dev:api`).

@@ -11,12 +11,12 @@
     "start": "npm run start:browser",
     "start:browser": "ng serve --open",
     "start:electron": "concurrently -k -n angular,tsc,electron -c cyan,yellow,green \"ng serve\" \"npm run watch:node\" \"npm run electron:dev\"",
-    "electron:dev": "wait-on http://localhost:4300 dist-node/electron/main.js && electron dist-node/electron/main.js --dev",
+    "electron:dev": "wait-on http://127.0.0.1:4300 dist-node/electron/main.js && electron dist-node/electron/main.js --dev",
     "dev:api": "npm run build:node && node dist-node/server/dev-server.js",
     "build": "npm run build:web && npm run build:node",
     "build:web": "ng build",
-    "build:node": "tsc -p tsconfig.node.json",
-    "watch:node": "tsc -p tsconfig.node.json --watch --preserveWatchOutput"
+    "build:node": "tsc -p tsconfig.node.json && node scripts/copy-server-data.mjs",
+    "watch:node": "node scripts/copy-server-data.mjs && tsc -p tsconfig.node.json --watch --preserveWatchOutput"
   },
   "dependencies": {
     "@angular/common": "^22.2.0",

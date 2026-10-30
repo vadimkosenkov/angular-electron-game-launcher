@@ -8,6 +8,12 @@
   <link rel="icon" type="image/x-icon" href="favicon.ico">
 </head>
 <body>
-  <app-root></app-root>
+  <!--
+    The placeholder is replaced per request with a fresh random nonce. Angular
+    reads `ngCspNonce` and stamps it onto the <style> elements it injects for
+    component styles, which is what lets the policy forbid inline styles
+    outright instead of allowing them all with 'unsafe-inline'.
+  -->
+  <app-root ngCspNonce="__CSP_NONCE__"></app-root>
 </body>
 </html>

@@ -60,6 +60,20 @@ The dev server sits on 4300 rather than the Angular default 4200 so the launcher
 can run alongside other local projects. The port lives in `angular.json` and in
 `shared/dev-config.ts`.
 
+It is pinned to the address `127.0.0.1`, not the name `localhost`, in both
+places. On macOS `localhost` resolves to `::1` first, so a second dev server
+bound to the IPv6 wildcard can take that address while ours holds the IPv4 one:
+both appear to be "on port 4300", neither fails to start, and the window
+quietly loads the wrong application. With the address named, a real collision
+fails loudly with *Port 4300 is already in use*, which is what a collision
+should do.
+
+The two commands are alternatives, not a pair. Both dev modes need an API on
+the fixed port **4301** -- `start:electron` starts one inside the main process,
+`start:browser` expects `npm run dev:api` beside it -- and the two use different
+tokens, so running both at once shows `UNAUTHORIZED: Missing or invalid session
+token.` in the browser. Stop one before starting the other.
+
 ### User data directory
 
 Electron derives the application name from the packaged bundle. Running
@@ -122,7 +136,39 @@ requests to loopback addresses. The launcher therefore does not treat
 - **Host header check** against loopback names, which defeats DNS rebinding.
 - **Origin allow-list.** Requests with no `Origin` (the window itself, curl)
   pass this check and are stopped by the token instead.
+- **Same-origin requests are allowed explicitly.** Same-origin is not the same
+  as origin-less: a `<script type="module">` is always fetched in CORS mode,
+  even by the page that references it, so in a packaged launcher the renderer's
+  own bundle arrives carrying an `Origin` header. Without that branch the
+  application serves its own `index.html` and then refuses to serve its own
+  JavaScript. The origin is compared against the `Host` header, already checked
+  to be loopback, because the port is only known at startup.
 - **32 kB JSON body limit** and `x-powered-by` disabled.
+
+### Content Security Policy
+
+The packaged renderer is served with a policy that allows no inline script and
+no inline style, and `connect-src 'self'` keeps a compromised page from talking
+to any other host.
+
+Two things had to change to make a policy that strict possible, and both are
+worth knowing:
+
+- Angular's production build inlines critical CSS together with a small inline
+  `onload` handler, which would force `'unsafe-inline'` in `script-src` -- the
+  exact hole the policy exists to close. `inlineCritical` is therefore off in
+  `angular.json`.
+- Angular injects component styles as `<style>` elements while the application
+  runs, which a strict `style-src` rejects. Rather than allowing every inline
+  style with `'unsafe-inline'`, the server generates a fresh nonce per response
+  and substitutes it into `index.html`; Angular reads the `ngCspNonce`
+  attribute on `<app-root>` and stamps that nonce onto the elements it injects.
+  This is why `index.html` cannot be served by `express.static` and why the
+  document is sent with `Cache-Control: no-store`.
+
+In development the page comes from the Angular dev server, which sends no
+policy, so the `__CSP_NONCE__` placeholder reaches the browser literally and is
+inert. The policy is exercised in a production run and when packaged.
 
 ### Checking the API without Electron
 

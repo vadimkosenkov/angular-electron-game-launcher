@@ -1,14 +1,27 @@
-import { contextBridge } from 'electron';
+import { contextBridge, ipcRenderer } from 'electron';
 
-import type { LauncherBridge } from '../shared/bridge.model';
+import type { LauncherBridge, SessionTokenChannel } from '../shared/bridge.model';
+
+/**
+ * Written out instead of imported.
+ *
+ * This script runs sandboxed, where `require` resolves only `electron` and a
+ * few built-in modules. Importing anything from the project would make the
+ * whole preload fail to load, and the page would then quietly behave as if it
+ * were running in a browser. The annotation keeps the literal honest: it stops
+ * compiling the moment the shared channel name changes.
+ */
+const sessionTokenChannel: SessionTokenChannel = 'launcher:session-token';
 
 /**
  * The preload script is the only place where Node and the renderer meet.
  *
- * It runs in an isolated world: it can use a small part of Electron, but the
- * page itself never sees that world. Everything the renderer is allowed to do
- * has to be listed here explicitly, which is exactly why `contextIsolation`
- * must stay on -- without it the page could reach into this scope directly.
+ * Everything the renderer is allowed to do has to be listed here explicitly,
+ * which is exactly why `contextIsolation` must stay on -- without it the page
+ * could reach into this scope directly.
+ *
+ * Note what is not exposed: `ipcRenderer` itself. The page gets one function
+ * that asks for one value, not a channel it can send anything down.
  */
 const bridge: LauncherBridge = {
   isElectron: true,
@@ -21,6 +34,7 @@ const bridge: LauncherBridge = {
     contextIsolation: process.contextIsolated,
     sandbox: process.sandboxed,
   },
+  getSessionToken: () => ipcRenderer.invoke(sessionTokenChannel),
 };
 
 contextBridge.exposeInMainWorld('launcher', bridge);
