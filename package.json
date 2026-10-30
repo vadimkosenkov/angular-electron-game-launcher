@@ -11,7 +11,7 @@
     "start": "npm run start:browser",
     "start:browser": "ng serve --open",
     "start:electron": "concurrently -k -n angular,tsc,electron -c cyan,yellow,green \"ng serve\" \"npm run watch:node\" \"npm run electron:dev\"",
-    "electron:dev": "wait-on http://127.0.0.1:4300 dist-node/electron/main.js && electron dist-node/electron/main.js --dev",
+    "electron:dev": "wait-on http://127.0.0.1:4500 dist-node/electron/main.js && electron dist-node/electron/main.js --dev",
     "dev:api": "npm run build:node && node dist-node/server/dev-server.js",
     "build": "npm run build:web && npm run build:node",
     "build:web": "ng build",
