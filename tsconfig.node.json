@@ -13,6 +13,12 @@
     "rootDir": ".",
     "outDir": "dist-node",
 
+    // Required for this project to be referenced from tsconfig.json, which is
+    // how editors learn that these files belong here and not to the Angular
+    // project. Without it, server/ and electron/ fall back to the default
+    // compiler options and lose the Node type definitions.
+    "composite": true,
+
     "strict": true,
     "noImplicitOverride": true,
     "noImplicitReturns": true,
@@ -25,5 +31,5 @@
     "skipLibCheck": true,
     "sourceMap": true
   },
-  "include": ["electron/**/*.ts", "shared/**/*.ts"]
+  "include": ["electron/**/*.ts", "server/**/*.ts", "shared/**/*.ts"]
 }

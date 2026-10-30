@@ -3,7 +3,12 @@
 {
   "extends": "./tsconfig.json",
   "compilerOptions": {
-    "types": []
+    "types": [],
+
+    // The Angular builder compiles and bundles with esbuild; tsc is only ever
+    // used here to type-check. Without this, a plain `tsc -b` would scatter
+    // .js files next to the sources, since this project has no outDir.
+    "noEmit": true
   },
   "include": [
     "src/**/*.ts",
