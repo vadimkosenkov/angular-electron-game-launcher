@@ -1,12 +1,10 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
-import { RouterLink } from '@angular/router';
 
 import { TranslocoDirective } from '@jsverse/transloco';
 import { GENRES, type Genre } from '@shared/game.model';
 
 import { CatalogStore, SORT_ORDERS, type SortOrder } from '../../core/catalog/catalog.store';
-import { LanguageService } from '../../core/i18n/language.service';
-import { GameCover } from '../../shared/game-cover/game-cover';
+import { GameCard } from '../../shared/game-card/game-card';
 
 /**
  * The catalog. Owns no state of its own: it writes the three controls on the
@@ -15,13 +13,12 @@ import { GameCover } from '../../shared/game-cover/game-cover';
 @Component({
   selector: 'app-discover',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [GameCover, RouterLink, TranslocoDirective],
+  imports: [GameCard, TranslocoDirective],
   styleUrl: './discover.scss',
   templateUrl: './discover.html',
 })
 export class Discover {
   protected readonly store = inject(CatalogStore);
-  protected readonly language = inject(LanguageService);
 
   protected readonly sortOrders = SORT_ORDERS;
 

@@ -63,23 +63,7 @@
       <ul class="grid">
         @for (game of store.visible(); track game.id) {
           <li class="grid__cell">
-            <a
-              class="card"
-              [routerLink]="['/games', game.id]"
-              [attr.aria-label]="t('card.open', { title: game.title })"
-              [style.--card-accent]="game.accentColor"
-            >
-              <app-game-cover class="card__cover" [game]="game" />
-              <div class="card__body">
-                <h2 class="card__title">{{ game.title }}</h2>
-                <p class="card__genres">
-                  @for (genre of game.genres; track genre) {
-                    <span class="chip">{{ t(genreLabelKey(genre)) }}</span>
-                  }
-                </p>
-                <p class="card__summary">{{ language.text(game.summary) }}</p>
-              </div>
-            </a>
+            <app-game-card [game]="game" />
           </li>
         }
       </ul>

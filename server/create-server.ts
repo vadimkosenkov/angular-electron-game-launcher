@@ -3,9 +3,17 @@ import { createServer, type Server } from 'node:http';
 
 import { createApiApp } from './app';
 import { loadCatalog, type Catalog } from './storage/catalog.store';
+import { loadUserData } from './storage/user-data.store';
 
 export interface ApiServerOptions {
   readonly catalogPath: string;
+  /**
+   * Directory for the user's favourites and settings. Required, and decided
+   * by the caller: Electron knows the real per-user location, and the dev
+   * server deliberately picks a different one. The server itself has no
+   * business guessing where someone's data belongs.
+   */
+  readonly userDataDir: string;
   readonly sessionToken: string;
   /** Omitted or 0 asks the operating system for a free port. */
   readonly port?: number;
@@ -39,10 +47,19 @@ export interface ApiServer {
  */
 export async function startApiServer(options: ApiServerOptions): Promise<ApiServer> {
   const catalog = await loadCatalog(options.catalogPath);
+
+  // Loaded after the catalog, and against it: a favourite is only kept if the
+  // game it points at is one this build actually ships.
+  const userData = await loadUserData({
+    directory: options.userDataDir,
+    isKnownGame: (gameId) => catalog.findById(gameId) !== undefined,
+  });
+
   const host = options.host ?? '127.0.0.1';
 
   const app = createApiApp({
     catalog,
+    userData,
     sessionToken: options.sessionToken,
     allowedOrigins: options.allowedOrigins ?? [],
     ...(options.staticRoot === undefined ? {} : { staticRoot: options.staticRoot }),

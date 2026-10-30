@@ -1,0 +1,73 @@
+<section class="page scroll-pane" *transloco="let t">
+  <header class="page__header">
+    <h1 class="page__heading">{{ t('settings.title') }}</h1>
+    <p class="page__lede">{{ t('settings.lede') }}</p>
+  </header>
+
+  @if (!isLoaded()) {
+    <!--
+      Shown only until the stored settings arrive. The controls below are
+      rendered either way, because the defaults they show are real values the
+      launcher is using -- not placeholders.
+    -->
+    <div class="notice notice--error">
+      <p class="notice__title">{{ t('settings.unreadTitle') }}</p>
+      <p class="notice__detail">{{ failure() ?? t('state.loading') }}</p>
+      @if (failure()) {
+        <button type="button" class="button" (click)="reload()">{{ t('state.retry') }}</button>
+      }
+    </div>
+  }
+
+  <!--
+    Real radio inputs, visually hidden and styled through their labels. A row
+    of buttons with aria-pressed would look the same and behave worse: a radio
+    group is one tab stop with arrow keys between the options, which is what
+    a single-choice control is supposed to do.
+  -->
+  <fieldset class="field">
+    <legend class="field__label">{{ t('settings.language') }}</legend>
+    <div class="segmented">
+      @for (option of languages; track option) {
+        <label class="segmented__option" [class.segmented__option--on]="currentLanguage() === option">
+          <input
+            class="segmented__input"
+            type="radio"
+            name="language"
+            [value]="option"
+            [checked]="currentLanguage() === option"
+            (change)="useLanguage(option)"
+          />
+          <span class="segmented__text">{{ languageNames[option] }}</span>
+        </label>
+      }
+    </div>
+    <p class="field__hint">{{ t('settings.languageHint') }}</p>
+  </fieldset>
+
+  <fieldset class="field">
+    <legend class="field__label">{{ t('settings.theme') }}</legend>
+    <div class="segmented">
+      @for (option of themeOptions; track option) {
+        <label class="segmented__option" [class.segmented__option--on]="theme.preference() === option">
+          <input
+            class="segmented__input"
+            type="radio"
+            name="theme"
+            [value]="option"
+            [checked]="theme.preference() === option"
+            (change)="useTheme(option)"
+          />
+          <span class="segmented__text">{{ t(themeLabels[option]) }}</span>
+        </label>
+      }
+    </div>
+    <p class="field__hint">
+      @if (theme.preference() === 'system') {
+        {{ t('settings.themeFollowing', { scheme: t('settings.scheme.' + theme.scheme()) }) }}
+      } @else {
+        {{ t('settings.themeFixed') }}
+      }
+    </p>
+  </fieldset>
+</section>

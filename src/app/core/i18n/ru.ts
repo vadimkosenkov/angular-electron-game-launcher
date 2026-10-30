@@ -8,7 +8,10 @@ import type { Translations } from './en';
  */
 export const ru: Translations = {
   nav: {
+    label: 'Разделы',
     discover: 'Каталог',
+    favourites: 'Избранное',
+    settings: 'Настройки',
     diagnostics: 'Диагностика',
     sectionLibrary: 'Библиотека',
     sectionSystem: 'Система',
@@ -32,11 +35,43 @@ export const ru: Translations = {
   card: {
     open: 'Открыть «{{title}}»',
   },
+  favourite: {
+    action: 'Добавить «{{title}}» в избранное',
+    save: 'В избранное',
+    saved: 'В избранном',
+  },
+  favourites: {
+    title: 'Избранное',
+    lede: 'Отложенные игры, сначала добавленные последними.',
+    counted: 'Отложено: {{count}}',
+    emptyTitle: 'Пока ничего не отложено',
+    emptyHint: 'Откройте игру и нажмите на сердечко, чтобы она появилась здесь.',
+    browse: 'Перейти в каталог',
+  },
+  settings: {
+    title: 'Настройки',
+    lede: 'Сохраняются на этом компьютере сразу при изменении.',
+    language: 'Язык интерфейса',
+    languageHint: 'Описания игр следуют за языком интерфейса.',
+    theme: 'Тема',
+    themeSystem: 'Системная',
+    themeLight: 'Светлая',
+    themeDark: 'Тёмная',
+    themeFollowing: 'Следует за системой, сейчас {{scheme}}.',
+    themeFixed: 'Не меняется вместе с системой.',
+    scheme: {
+      light: 'светлая',
+      dark: 'тёмная',
+    },
+    unreadTitle: 'Не удалось прочитать сохранённые настройки',
+  },
   game: {
     back: 'Назад к каталогу',
     play: 'Играть',
     playHint: 'Откроется в браузере',
     opening: 'Открываю…',
+    playRejected: 'Лончер отказался открывать этот адрес.',
+    playFailed: 'Не удалось открыть системный браузер.',
     about: 'Об игре',
     details: 'Подробности',
     developer: 'Разработчик',
@@ -70,5 +105,6 @@ export const ru: Translations = {
     loading: 'Загружаю каталог…',
     errorTitle: 'Не удалось загрузить каталог',
     retry: 'Повторить',
+    saveFailed: 'Изменение не сохранилось.',
   },
 };

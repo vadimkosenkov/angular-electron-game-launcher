@@ -19,6 +19,12 @@ export interface LauncherApi {
 
 export interface StartLauncherApiOptions {
   readonly isDev: boolean;
+  /**
+   * Where favourites and settings are written. Passed in rather than read from
+   * `app.getPath` here, which is what keeps this file free of any Electron
+   * import -- the API it starts has to be runnable under plain node.
+   */
+  readonly userDataDir: string;
 }
 
 export async function startLauncherApi(options: StartLauncherApiOptions): Promise<LauncherApi> {
@@ -28,6 +34,7 @@ export async function startLauncherApi(options: StartLauncherApiOptions): Promis
 
   const server = await startApiServer({
     catalogPath: join(__dirname, '../server/data/games.json'),
+    userDataDir: options.userDataDir,
     sessionToken,
 
     // Development pins the port because the Angular dev server proxies /api to

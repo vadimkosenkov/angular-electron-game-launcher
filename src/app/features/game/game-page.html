@@ -39,16 +39,19 @@
           >
             {{ playState() === 'opening' ? t('game.opening') : t('game.play') }}
           </button>
-          <span class="play__hint">{{ t('game.playHint') }}</span>
+
+          <app-favourite-button
+            [gameId]="game.id"
+            [gameTitle]="game.title"
+            [withLabel]="true"
+          />
         </div>
+
+        <p class="play__hint">{{ t('game.playHint') }}</p>
 
         @if (playState() === 'rejected' || playState() === 'failed') {
           <p class="play__problem">
-            {{
-              playState() === 'rejected'
-                ? 'The launcher refused to open that address.'
-                : 'The system browser could not be opened.'
-            }}
+            {{ playState() === 'rejected' ? t('game.playRejected') : t('game.playFailed') }}
           </p>
         }
       </div>

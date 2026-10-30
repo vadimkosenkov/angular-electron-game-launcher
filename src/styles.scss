@@ -1,6 +1,34 @@
-/* Global design tokens and base styles. Light theme and theme switching land  */
-/* in stage 6; until then the launcher is dark only.                           */
+/* Global design tokens and base styles.                                       */
+/*                                                                             */
+/* Colours are defined twice: once for dark, once for light. ThemeService puts */
+/* data-theme="light" or "dark" on <html>, so switching themes redefines these */
+/* custom properties and every rule that reads them follows. No component      */
+/* knows which theme is active, and none has a light-mode branch of its own.   */
+
 :root {
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --titlebar-height: 52px;
+  --sidebar-width: 216px;
+
+  /* One place to slow everything down for people who ask the system to. */
+  --motion-fast: 120ms;
+  --motion-medium: 220ms;
+
+  --font-sans: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', sans-serif;
+  --font-display: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', sans-serif;
+  --font-mono: ui-monospace, 'SF Mono', 'JetBrains Mono', monospace;
+}
+
+/* The bare :root is the first frame, before the stored theme has been read. */
+/* Dark is that starting point, which is what the launcher looked like until  */
+/* this stage; a light-mode user sees it for one frame rather than a flash of */
+/* white, which is the less jarring way round.                               */
+:root,
+:root[data-theme='dark'] {
+  /* Tells the browser to draw scrollbars, form controls and the native */
+  /* caret to match, which CSS variables alone cannot do.               */
   color-scheme: dark;
 
   --surface-base: #0f1115;
@@ -17,21 +45,34 @@
   --state-ok: #3ecf8e;
   --state-danger: #f2555a;
 
-  --radius-sm: 6px;
-  --radius-md: 10px;
-  --radius-lg: 14px;
-  --titlebar-height: 52px;
-  --sidebar-width: 216px;
-
   --shadow-card: 0 1px 2px rgb(0 0 0 / 40%), 0 8px 24px rgb(0 0 0 / 28%);
+}
 
-  /* One place to slow everything down for people who ask the system to. */
-  --motion-fast: 120ms;
-  --motion-medium: 220ms;
+:root[data-theme='light'] {
+  color-scheme: light;
 
-  --font-sans: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', sans-serif;
-  --font-display: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', sans-serif;
-  --font-mono: ui-monospace, 'SF Mono', 'JetBrains Mono', monospace;
+  /* Not the dark values inverted: a light interface wants its raised       */
+  /* surfaces lighter than the page, so the order of base/raised/sunken is  */
+  /* reversed rather than mirrored.                                         */
+  --surface-base: #f4f5f8;
+  --surface-raised: #ffffff;
+  --surface-sunken: #ebeef4;
+  --surface-hover: #e1e5ef;
+  --border-subtle: #dcdfe8;
+  --border-strong: #bcc2d1;
+
+  --text-primary: #191c23;
+  --text-secondary: #596071;
+
+  /* Darker than the dark theme's accent: the same blue that reads well on */
+  /* #0f1115 does not have the contrast for text on white.                 */
+  --accent: #2458d8;
+  --state-ok: #0d8a57;
+  --state-danger: #c9252d;
+
+  /* Shadows carry the elevation here, so they are tighter and much softer: */
+  /* the dark theme's heavy drop would read as grime on a white card.       */
+  --shadow-card: 0 1px 2px rgb(23 30 51 / 8%), 0 6px 16px rgb(23 30 51 / 8%);
 }
 
 /* Animation is decoration here, so it is the first thing to go. */
@@ -81,4 +122,115 @@ app-root {
   overflow-y: auto;
   scrollbar-color: var(--border-strong) transparent;
   scrollbar-width: thin;
+}
+
+/* ---------------------------------------------------------------------------- */
+/* Page chrome.                                                                 */
+/*                                                                              */
+/* Every page has a heading, may have to report a failure, and may offer a       */
+/* button to recover from it. These lived in discover.scss until a second and    */
+/* third page needed exactly the same rules; component styles are scoped, so     */
+/* sharing them means putting them here. The alternative was three copies to     */
+/* keep in step.                                                                */
+/* ---------------------------------------------------------------------------- */
+
+.page {
+  height: 100%;
+  padding: 32px 32px 48px;
+}
+
+.page__header {
+  margin-bottom: 22px;
+}
+
+.page__heading {
+  margin: 0 0 6px;
+  font-family: var(--font-display);
+  font-size: 24px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.page__lede {
+  max-width: 62ch;
+  margin: 0;
+  color: var(--text-secondary);
+}
+
+/* Cards keep a sensible width at any window size without a media query. */
+.grid {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.grid__cell {
+  display: flex;
+}
+
+.chip {
+  padding: 1px 8px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 999px;
+  color: var(--text-secondary);
+  font-size: 11px;
+}
+
+.notice {
+  max-width: 520px;
+  padding: 18px 20px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  background: var(--surface-raised);
+
+  &--error {
+    border-color: color-mix(in srgb, var(--state-danger) 40%, var(--border-subtle));
+  }
+}
+
+.notice__title {
+  margin: 0 0 6px;
+  font-weight: 600;
+}
+
+.notice__detail {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 12.5px;
+}
+
+.button {
+  padding: 7px 14px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  background: var(--surface-hover);
+  color: var(--text-primary);
+  font: inherit;
+  text-decoration: none;
+  cursor: pointer;
+  transition: border-color var(--motion-fast) ease;
+
+  &:hover {
+    border-color: var(--border-strong);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+}
+
+/* The "n of m" line every list page prints above its grid. */
+.count {
+  margin: 0 0 14px;
+  color: var(--text-secondary);
+  font-size: 12.5px;
+}
+
+/* Inside a notice the button is the recovery action, below the explanation. */
+.notice .button {
+  margin-top: 14px;
 }

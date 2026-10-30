@@ -66,10 +66,16 @@
   gap: 6px;
 }
 
+/*
+ * A larger, accent-bordered variant of the global `.chip`. The colour has to
+ * be restated: the shared rule sets it to the secondary text colour for chips
+ * on a card, and here the genres are part of the heading block.
+ */
 .chip {
   padding: 2px 9px;
   border: 1px solid color-mix(in srgb, var(--game-accent, var(--accent)) 40%, var(--border-subtle));
   border-radius: 999px;
+  color: var(--text-primary);
   font-size: 11.5px;
 
   &--muted {
@@ -111,13 +117,15 @@
   }
 }
 
+// Below the buttons rather than beside them, now that the row holds two.
 .play__hint {
+  margin: 6px 0 0;
   color: var(--text-secondary);
   font-size: 12px;
 }
 
 .play__problem {
-  margin: 0;
+  margin: 6px 0 0;
   color: var(--state-danger);
   font-size: 12.5px;
 }

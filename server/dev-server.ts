@@ -19,8 +19,15 @@ async function main(): Promise<void> {
   // there rather than from the compiled file's location in dist-node.
   const catalogPath = resolve(process.cwd(), 'server/data/games.json');
 
+  // Inside the repository and gitignored, rather than the real per-user
+  // directory Electron uses. Browser-only development then has favourites of
+  // its own: easy to inspect, easy to delete, and incapable of overwriting
+  // the data of an installed launcher while experimenting.
+  const userDataDir = resolve(process.cwd(), '.dev-user-data');
+
   const server = await startApiServer({
     catalogPath,
+    userDataDir,
     sessionToken: DEV_SESSION_TOKEN,
     port: DEV_API_PORT,
     allowedOrigins: [ANGULAR_DEV_SERVER_URL],
@@ -28,6 +35,7 @@ async function main(): Promise<void> {
 
   console.log(`[api] listening on ${server.url}`);
   console.log(`[api] catalog   ${catalogPath}`);
+  console.log(`[api] user data ${userDataDir}`);
   console.log(`[api] dev token ${DEV_SESSION_TOKEN}`);
 
   const shutDown = (signal: string): void => {

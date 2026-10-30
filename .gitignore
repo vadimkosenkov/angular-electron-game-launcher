@@ -48,5 +48,5 @@ Thumbs.db
 /release
 *.tsbuildinfo
 
-# User data written by the standalone dev server (stage 3)
+# Favourites and settings written by the standalone dev server
 /.dev-user-data

@@ -1,0 +1,31 @@
+<article class="card" *transloco="let t" [style.--card-accent]="game().accentColor">
+  <div class="card__media">
+    <app-game-cover class="card__cover" [game]="game()" />
+    <app-favourite-button
+      class="card__favourite"
+      [gameId]="game().id"
+      [gameTitle]="game().title"
+    />
+  </div>
+
+  <div class="card__body">
+    <!--
+      The whole card is clickable, but only the title is a link. Wrapping the
+      card in an anchor is how this looked in stage 5, and it cannot survive a
+      button being added: a button inside a link is invalid HTML, and a click
+      on it would navigate as well as toggle. So the link stretches over the
+      card through a pseudo-element instead, and the heart sits above it.
+    -->
+    <h2 class="card__title">
+      <a class="card__link" [routerLink]="['/games', game().id]">{{ game().title }}</a>
+    </h2>
+
+    <p class="card__genres">
+      @for (genre of game().genres; track genre) {
+        <span class="chip">{{ t(genreLabelKey(genre)) }}</span>
+      }
+    </p>
+
+    <p class="card__summary">{{ language.text(game().summary) }}</p>
+  </div>
+</article>
