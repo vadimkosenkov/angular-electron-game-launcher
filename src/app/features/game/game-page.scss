@@ -25,7 +25,13 @@
   gap: 24px;
   /* Collapses to one column on a narrow window without a media query. */
   grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-  align-items: start;
+  /*
+   * The two columns are rarely the same height: a game with a short summary
+   * and few tags leaves the text ending well above the bottom of its cover.
+   * Centring the shorter column against the taller one spreads that
+   * difference instead of pooling it all underneath.
+   */
+  align-items: center;
   max-width: 920px;
   margin-bottom: 24px;
 }
