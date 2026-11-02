@@ -2,8 +2,12 @@
   "name": "game-launcher",
   "productName": "Game Launcher",
   "description": "Desktop catalog of browser games built with Angular, Electron and Express.",
-  "version": "0.0.0",
+  "version": "0.7.0",
   "private": true,
+  "license": "MIT",
+  "author": {
+    "name": "Vadim Kosenkov"
+  },
   "main": "dist-node/electron/main.js",
   "packageManager": "npm@11.19.0",
   "scripts": {
@@ -16,30 +20,34 @@
     "build": "npm run build:web && npm run build:node",
     "build:web": "ng build",
     "build:node": "tsc -p tsconfig.node.json && node scripts/copy-server-data.mjs",
-    "watch:node": "node scripts/copy-server-data.mjs && tsc -p tsconfig.node.json --watch --preserveWatchOutput"
+    "watch:node": "node scripts/copy-server-data.mjs && tsc -p tsconfig.node.json --watch --preserveWatchOutput",
+    "icon": "node scripts/build-icon.mjs",
+    "package": "npm run build && npm run icon && electron-builder --mac --arm64",
+    "package:dir": "npm run build && npm run icon && electron-builder --dir --mac --arm64"
   },
   "dependencies": {
-    "@angular/common": "^22.2.0",
-    "@angular/compiler": "^22.2.0",
-    "@angular/core": "^22.2.0",
-    "@angular/forms": "^22.2.0",
-    "@angular/platform-browser": "^22.2.0",
-    "@angular/router": "^22.2.0",
-    "@jsverse/transloco": "^8.4.0",
     "express": "^5.3.0",
-    "rxjs": "~7.8.0",
     "tslib": "^2.3.0",
     "zod": "^4.6.7"
   },
   "devDependencies": {
     "@angular/build": "^22.2.5",
     "@angular/cli": "^22.2.5",
+    "@angular/common": "^22.2.0",
+    "@angular/compiler": "^22.2.0",
     "@angular/compiler-cli": "^22.2.0",
+    "@angular/core": "^22.2.0",
+    "@angular/forms": "^22.2.0",
+    "@angular/platform-browser": "^22.2.0",
+    "@angular/router": "^22.2.0",
+    "@jsverse/transloco": "^8.4.0",
     "@types/express": "^5.0.6",
     "@types/node": "^24.19.2",
     "concurrently": "^10.0.6",
     "electron": "^45.1.0",
+    "electron-builder": "^26.0.12",
     "prettier": "^3.8.1",
+    "rxjs": "~7.8.0",
     "typescript": "~6.0.2",
     "wait-on": "^9.5.1"
   }

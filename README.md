@@ -111,7 +111,120 @@ directories applies. See [User data on disk](#user-data-on-disk).
 npm run build       # Angular bundle into dist/, Node bundle into dist-node/
 ```
 
-Packaging into a `.dmg` is added in stage 7.
+## Packaging
+
+```bash
+npm run package       # a .dmg in release/
+npm run package:dir   # the .app only, without the disk image -- faster to test
+```
+
+Both run the build and the icon generator first, so there is no way to package
+a stale bundle. The result is `release/Game Launcher-<version>-arm64.dmg`,
+about 115 MB, of which Electron's own framework is nearly all.
+
+[electron-builder](https://www.electron.build/) does the work, configured in
+`electron-builder.yml` rather than in a `build` key in `package.json`, so the
+reasoning can live beside the settings.
+
+### What goes in the bundle, and what the dependency split is for
+
+electron-builder ships `dependencies` and omits `devDependencies`. That is the
+whole mechanism, and it is why Angular, transloco and rxjs are listed as
+development dependencies here even though the application cannot run without
+them: by packaging time they are already compiled into `dist/`, and the copy in
+`node_modules` would be 100 MB of source nothing reads.
+
+What is left in `dependencies` is what the Node side still `require`s at run
+time: `express`, `zod` and `tslib`. The check is worth keeping:
+
+```bash
+npx asar list "release/mac-arm64/Game Launcher.app/Contents/Resources/app.asar" | grep -c '@angular'
+```
+
+Zero. The rest of the repository -- source, scripts, screenshots, the dev
+server -- is excluded by naming the three things that belong in the bundle
+instead of filtering everything else out.
+
+`npmRebuild` is off: there are no native modules, so there is nothing to
+rebuild against Electron's ABI.
+
+### Serving the renderer from inside the archive
+
+Everything is packed into `app.asar`, including the Angular bundle that Express
+serves with `express.static`. That reads from the archive without any
+unpacking, because Electron patches `fs` to understand asar paths, and
+`express.static` goes through `fs` like everything else. Verified rather than
+assumed -- `asarUnpack` is not needed here, and was removed after checking
+that the packaged renderer's JavaScript really is served:
+
+```
+GET /                  200   (with the nonce CSP header)
+GET /main-<hash>.js    200   116938 bytes
+GET /api/games         401   (no bridge, no token)
+```
+
+### The icon
+
+```bash
+npm run icon          # build/icon.icns and build/icon.png
+```
+
+`scripts/build-icon.mjs` draws it: a rounded blue square with a white
+play triangle, in Apple's proportions, at each of the ten sizes `iconutil`
+wants. Nothing is installed to do it -- a PNG is length-prefixed chunks around
+zlib-compressed scanlines, and `node:zlib` is already there.
+
+Two decisions in that script are worth the few extra lines. Each size is drawn
+at its own scale rather than resampled from 1024, because at 16 pixels a
+downscaled triangle is a blue smudge. And every pixel is sampled sixteen times,
+so the rounded corners and the diagonal edges are smooth rather than stepped.
+
+The generated files are gitignored: a binary nobody can diff does not belong in
+the repository when a script can produce it byte for byte.
+
+### Code signing, and what macOS will say
+
+There is no paid Apple Developer certificate behind this project, so the
+application is **ad-hoc signed**: `identity: null` tells electron-builder not
+to go looking for one, and `scripts/ad-hoc-sign.mjs`, wired in through its
+`afterPack` hook, seals the bundle with `codesign --sign -`.
+
+That hook is not a formality. Without it the bundle is in a state worse than
+unsigned: Electron's binary arrives carrying the ad-hoc signature its own
+linker produced, while the bundle around it has no `_CodeSignature` seal at
+all, and macOS reports the inconsistency as
+
+```
+code has no resources but signature indicates they must be present
+```
+
+A disk image downloaded in that state is called **damaged**, with no way for
+the person to override it. With the seal in place the verdict is the ordinary
+one:
+
+```bash
+spctl -a -t exec -vv "release/mac-arm64/Game Launcher.app"   # rejected
+codesign -dv "release/mac-arm64/Game Launcher.app"           # Signature=adhoc
+```
+
+"Rejected" is the expected answer and is as far as this gets: `-` is not an
+identity, and Gatekeeper still has no idea who built the application. What
+changed is that the person can now get past it.
+
+**Opening it the first time.** macOS says *"Game Launcher" cannot be opened
+because the developer cannot be verified*, or on a downloaded copy *"Game
+Launcher" is damaged* if the quarantine flag is set. Either way:
+
+```bash
+xattr -dr com.apple.quarantine "/Applications/Game Launcher.app"
+```
+
+or, without the terminal: right-click the application in Finder, choose
+**Open**, and confirm once. macOS remembers the decision for that copy.
+
+Replacing `identity: null` with a Developer ID and adding notarisation is the
+only change needed to remove all of this, and the configuration is written so
+that it is the only change.
 
 ## API
 
@@ -222,6 +335,58 @@ process.
 The IPC argument is typed `unknown` on arrival, because a compromised renderer
 can invoke the channel with anything at all. The game's address is shown on its
 page as plain text rather than as a link, so the button is the only way out.
+
+### When something goes wrong
+
+A packaged application has no terminal attached. Everything it knows about its
+own failures goes nowhere unless it is written down, which is exactly the build
+where it matters.
+
+**The log file.** `electron/logger.ts` wraps `console.debug/log/info/warn/error`
+so that every line also lands in a file:
+
+| Mode | File |
+| --- | --- |
+| development | `~/Library/Application Support/Game Launcher (dev)/logs/main.log` |
+| packaged | `~/Library/Application Support/Game Launcher/logs/main.log` |
+
+The console is wrapped rather than replaced by a logger threaded through every
+module, and that is deliberate: the Express server never imports Electron --
+that independence is what lets it run under plain `node` -- so it cannot be
+handed a logger that knows where Electron keeps user data. Wrapping the console
+captures its output, and node's own, without any module knowing.
+
+Appends are synchronous. The lines worth having are the last ones before a
+crash, and those are precisely the ones a buffered writer loses; at a handful
+of lines per run the cost is not worth measuring. The file rotates at 512 kB,
+keeping one `main.previous.log`, and a log that cannot be written is swallowed
+rather than allowed to become the thing that breaks the application.
+
+**A crash in the main process.** `uncaughtException` means the process that
+owns the window, the API and the user's data is in a state nobody reasoned
+about, so the launcher says so in a dialog, names the log file and exits with
+code 1. Carrying on would mean an application that half works.
+
+An unhandled promise rejection is logged but does not quit. Most of them are
+one failed operation rather than a broken process, and quitting over one would
+be a worse bug than the one being reported.
+
+**A crash in the renderer.** `render-process-gone` leaves a blank window and
+`unresponsive` leaves the last frame it painted -- from the outside both look
+like an application that has simply frozen. Both are named in a dialog that
+offers the one action that helps:
+
+| Event | Dialog |
+| --- | --- |
+| `render-process-gone` | *The window stopped running.* — **Reload** / Quit |
+| `unresponsive` | *The window is not responding.* — **Keep waiting** / Reload |
+
+Reloading loses nothing: favourites and settings are on disk, not in the page.
+
+These dialogs are in English while the rest of the interface is translated.
+They come from the main process, which has no access to the dictionaries and
+may have to speak before the renderer -- the thing that knows the chosen
+language -- exists at all.
 
 ### Interface language
 
