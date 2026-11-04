@@ -8,6 +8,7 @@ import { GAME_ID_MAX_LENGTH, GAME_ID_PATTERN, LANGUAGES } from '../../shared/gam
 import {
   DEFAULT_USER_DATA,
   THEME_PREFERENCES,
+  type PlayRecord,
   type UserData,
   type UserSettings,
 } from '../../shared/user-data.model';
@@ -25,6 +26,31 @@ import {
 const USER_DATA_FILE = 'user-data.json';
 
 const gameIdSchema = z.string().max(GAME_ID_MAX_LENGTH).regex(GAME_ID_PATTERN);
+
+/**
+ * A ceiling on the launch count, so arithmetic on a hand-edited number cannot
+ * leave the range where integers are exact. Reaching it honestly would take
+ * longer than the universe has had.
+ */
+const MAX_LAUNCH_COUNT = Number.MAX_SAFE_INTEGER;
+
+/**
+ * One history entry, validated as a whole.
+ *
+ * Unlike the fields above this has no `.catch`: a record whose count or
+ * timestamp is unreadable is not a record that can be partly salvaged --
+ * invented values would be worse than the missing row. It is dropped, and the
+ * rest of the history is kept.
+ *
+ * An offset is accepted although the launcher only ever writes `Z`. The
+ * strict form would discard a perfectly meaningful timestamp from a file
+ * somebody edited by hand, which is the opposite of what this loader is for.
+ */
+const playRecordSchema = z.object({
+  gameId: gameIdSchema,
+  launchCount: z.number().int().min(1).max(MAX_LAUNCH_COUNT),
+  lastPlayedAt: z.iso.datetime({ offset: true }),
+});
 
 /**
  * Note `.catch` on every field, where the catalog uses plain validation.
@@ -49,8 +75,9 @@ const userDataSchema = z
       })
       .catch(DEFAULT_USER_DATA.settings),
     favourites: z.array(z.unknown()).catch([]),
+    history: z.array(z.unknown()).catch([]),
   })
-  .catch({ settings: DEFAULT_USER_DATA.settings, favourites: [] });
+  .catch({ settings: DEFAULT_USER_DATA.settings, favourites: [], history: [] });
 
 export interface UserDataStore {
   /** The current state, held in memory. Never a stale read of the file. */
@@ -62,15 +89,19 @@ export interface UserDataStore {
    */
   updateSettings(settings: UserSettings): Promise<UserData>;
   setFavourite(gameId: string, favourite: boolean): Promise<UserData>;
+  /** Counts one launch of a game that the main process actually opened. */
+  recordLaunch(gameId: string): Promise<UserData>;
+  clearHistory(): Promise<UserData>;
 }
 
 export interface LoadUserDataOptions {
   /** Directory the file lives in. Supplied by Electron or the dev server. */
   readonly directory: string;
   /**
-   * Whether a game id still exists in the catalog. Favourites for games that
-   * a later version dropped are discarded on load rather than kept forever:
-   * the catalog decides what a game is, and this list only points at it.
+   * Whether a game id still exists in the catalog. Favourites and history
+   * entries for games that a later version dropped are discarded on load
+   * rather than kept forever: the catalog decides what a game is, and both
+   * lists only point at it.
    */
   isKnownGame(gameId: string): boolean;
 }
@@ -142,6 +173,33 @@ export async function loadUserData(options: LoadUserDataOptions): Promise<UserDa
         const favourites = favourite ? [gameId, ...state.favourites] : without;
         return commit({ ...state, favourites });
       }),
+
+    recordLaunch: (gameId) =>
+      enqueue(() => {
+        const previous = state.history.find((record) => record.gameId === gameId);
+
+        const record: PlayRecord = {
+          gameId,
+          launchCount: Math.min((previous?.launchCount ?? 0) + 1, MAX_LAUNCH_COUNT),
+          // The server stamps the time rather than accepting one from the
+          // renderer. A client-supplied timestamp is a value that has to be
+          // range-checked, ordered against the others and believed; this one
+          // only has to be read off the clock that already decides what "now"
+          // means for every other write.
+          lastPlayedAt: new Date().toISOString(),
+        };
+
+        // Moved to the front rather than updated in place, which is what keeps
+        // "most recently played first" true without ever sorting.
+        const history = [record, ...state.history.filter((entry) => entry.gameId !== gameId)];
+        return commit({ ...state, history });
+      }),
+
+    clearHistory: () =>
+      enqueue(() =>
+        // Nothing to forget is not a failure, and not a write either.
+        state.history.length === 0 ? Promise.resolve(state) : commit({ ...state, history: [] }),
+      ),
   };
 }
 
@@ -190,7 +248,49 @@ async function readUserData(
     }
   }
 
-  return { settings: parsed.settings, favourites };
+  return {
+    settings: parsed.settings,
+    favourites,
+    history: readHistory(parsed.history, isKnownGame),
+  };
+}
+
+/**
+ * Salvages the history one entry at a time.
+ *
+ * Three things can be wrong with a file nobody wrote through this API: an
+ * entry that does not match the shape, two entries for the same game, and an
+ * order that no longer matches the timestamps. The first is dropped, the
+ * first of the duplicates wins, and the order is restored by sorting -- the
+ * rest of the application is then free to treat "most recent first" as an
+ * invariant rather than as something to re-check.
+ */
+function readHistory(
+  entries: readonly unknown[],
+  isKnownGame: (gameId: string) => boolean,
+): readonly PlayRecord[] {
+  const seen = new Set<string>();
+  const history: PlayRecord[] = [];
+
+  for (const entry of entries) {
+    const result = playRecordSchema.safeParse(entry);
+    if (!result.success || !isKnownGame(result.data.gameId) || seen.has(result.data.gameId)) {
+      continue;
+    }
+    seen.add(result.data.gameId);
+    history.push(result.data);
+  }
+
+  const dropped = entries.length - history.length;
+  if (dropped > 0) {
+    console.warn(`[api] dropped ${dropped} unreadable or duplicate history entr(ies)`);
+  }
+
+  // Compared as instants rather than as strings. The launcher only ever
+  // writes `Z`, where the two orders agree, but it accepts an offset -- and
+  // `"2026-01-01T00:00:00+03:00"` sorts after `"2026-01-01T12:00:00Z"` as
+  // text while being three hours earlier in fact.
+  return history.sort((a, b) => Date.parse(b.lastPlayedAt) - Date.parse(a.lastPlayedAt));
 }
 
 /**

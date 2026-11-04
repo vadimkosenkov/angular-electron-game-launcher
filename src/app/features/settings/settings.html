@@ -70,4 +70,38 @@
       }
     </p>
   </fieldset>
+
+  <fieldset class="field" [disabled]="!isLoaded()">
+    <legend class="field__label">{{ t('settings.history') }}</legend>
+
+    <p class="field__value">
+      @if (playedCount() > 0) {
+        {{ t('settings.historyCount', { count: playedCount() }) }}
+      } @else {
+        {{ t('settings.historyEmpty') }}
+      }
+    </p>
+
+    @if (playedCount() > 0) {
+      @if (isConfirming()) {
+        <p class="field__confirm">{{ t('settings.historyConfirm') }}</p>
+        <div class="field__actions">
+          <button type="button" class="button button--danger" (click)="clearHistory()">
+            {{ t('settings.historyConfirmYes') }}
+          </button>
+          <button type="button" class="button" (click)="cancelClearHistory()">
+            {{ t('settings.historyCancel') }}
+          </button>
+        </div>
+      } @else {
+        <div class="field__actions">
+          <button type="button" class="button" (click)="askToClearHistory()">
+            {{ t('settings.historyClear') }}
+          </button>
+        </div>
+      }
+    }
+
+    <p class="field__hint">{{ t('settings.historyHint') }}</p>
+  </fieldset>
 </section>

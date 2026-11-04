@@ -10,6 +10,8 @@ import { describeApiError, isNotFound } from '../../core/api/api-error';
 import { ApiClient } from '../../core/api/api.client';
 import { LauncherBridgeService } from '../../core/bridge/launcher-bridge';
 import { LanguageService } from '../../core/i18n/language.service';
+import { RelativeTimeService } from '../../core/i18n/relative-time.service';
+import { UserDataStore } from '../../core/user-data/user-data.store';
 import { FavouriteButton } from '../../shared/favourite-button/favourite-button';
 import { GameCover } from '../../shared/game-cover/game-cover';
 
@@ -42,7 +44,9 @@ export class GamePage {
 
   private readonly api = inject(ApiClient);
   private readonly launcher = inject(LauncherBridgeService);
+  private readonly userData = inject(UserDataStore);
   protected readonly language = inject(LanguageService);
+  protected readonly relativeTime = inject(RelativeTimeService);
 
   private readonly state = signal<PageState>({ kind: 'loading' });
 
@@ -57,6 +61,21 @@ export class GamePage {
   protected readonly game = computed(() => {
     const state = this.state();
     return state.kind === 'ready' ? state.game : null;
+  });
+
+  /** What the launcher remembers about this game, or nothing. */
+  protected readonly record = computed(() => {
+    const game = this.game();
+    return game === null ? undefined : this.userData.playRecord(game.id);
+  });
+
+  /**
+   * Computed rather than called from the template, so that the language and
+   * the minute-by-minute clock the service reads are both tracked here.
+   */
+  protected readonly lastPlayed = computed(() => {
+    const record = this.record();
+    return record === undefined ? '' : this.relativeTime.format(record.lastPlayedAt);
   });
 
   constructor() {
@@ -92,5 +111,13 @@ export class GamePage {
     this.playState.set('opening');
     const outcome = await this.launcher.openGame(game.playUrl);
     this.playState.set(outcome === 'opened' ? 'idle' : outcome);
+
+    // Counted only when the main process says it actually opened the address.
+    // A refused or failed launch is not a game that was played, and counting
+    // the press rather than the result would make the number mean nothing in
+    // exactly the cases worth knowing about.
+    if (outcome === 'opened') {
+      this.userData.recordLaunch(game.id);
+    }
   }
 }

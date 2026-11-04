@@ -86,3 +86,20 @@
     outline-offset: 1px;
   }
 }
+
+.field__value {
+  margin: 8px 0 0;
+  font-size: 13px;
+}
+
+.field__confirm {
+  margin: 10px 0 0;
+  color: var(--text-primary);
+  font-size: 13px;
+}
+
+.field__actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}

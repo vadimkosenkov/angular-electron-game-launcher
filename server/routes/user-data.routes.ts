@@ -59,6 +59,19 @@ export function createUserDataRouter(store: UserDataStore, catalog: Catalog): Ro
     res.json(respond(await store.setFavourite(requireGameId(req.params.gameId, catalog), false)));
   });
 
+  // POST, not PUT: this one is not idempotent on purpose. Sending it twice
+  // means the game was launched twice, which is the entire point, and a verb
+  // that promised otherwise would be lying about what the route does.
+  router.post('/history/:gameId', async (req, res) => {
+    res.json(respond(await store.recordLaunch(requireGameId(req.params.gameId, catalog))));
+  });
+
+  // No `:gameId`: forgetting one game is not a thing the interface offers, and
+  // a route nobody calls is a route nobody keeps correct.
+  router.delete('/history', async (_req, res) => {
+    res.json(respond(await store.clearHistory()));
+  });
+
   return router;
 }
 
@@ -68,7 +81,8 @@ export function createUserDataRouter(store: UserDataStore, catalog: Catalog): Ro
  * The existence check is the one that matters: without it the renderer could
  * fill the file with ids for games that do not exist, and every one of them
  * would be read back, validated and discarded on the next start. Favourites
- * point at the catalog, so only the catalog decides what may go in them.
+ * and history both point at the catalog, so only the catalog decides what may
+ * go in them.
  */
 function requireGameId(gameId: string, catalog: Catalog): string {
   if (gameId.length > GAME_ID_MAX_LENGTH || !GAME_ID_PATTERN.test(gameId)) {

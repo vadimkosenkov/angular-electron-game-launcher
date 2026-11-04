@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 
 import { TranslocoDirective } from '@jsverse/transloco';
 import { LANGUAGES, type Language } from '@shared/game.model';
@@ -36,6 +36,16 @@ export class Settings {
   protected readonly isLoaded = this.userData.isLoaded;
   protected readonly failure = this.userData.loadFailure;
 
+  protected readonly playedCount = computed(() => this.userData.history().length);
+
+  /**
+   * Clearing the history is the only thing on this page that destroys
+   * something, so it is the only thing that asks first. The confirmation is
+   * a second press rather than a system dialog: it keeps the answer next to
+   * the question, and it does not block the window to ask it.
+   */
+  protected readonly isConfirming = signal(false);
+
   /**
    * Language names are never translated: someone looking for their own
    * language looks for the word they would write, not for its English name.
@@ -59,6 +69,19 @@ export class Settings {
 
   protected useTheme(preference: ThemePreference): void {
     this.theme.select(preference);
+  }
+
+  protected askToClearHistory(): void {
+    this.isConfirming.set(true);
+  }
+
+  protected cancelClearHistory(): void {
+    this.isConfirming.set(false);
+  }
+
+  protected clearHistory(): void {
+    this.userData.clearHistory();
+    this.isConfirming.set(false);
   }
 
   protected reload(): void {

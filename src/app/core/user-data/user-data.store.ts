@@ -4,6 +4,7 @@ import { firstValueFrom, type Observable } from 'rxjs';
 import type { Language } from '@shared/game.model';
 import {
   DEFAULT_USER_DATA,
+  type PlayRecord,
   type ThemePreference,
   type UserData,
   type UserSettings,
@@ -36,6 +37,36 @@ export class UserDataStore {
   private readonly readError = signal<string | null>(null);
   private readonly writeError = signal<string | null>(null);
 
+  /**
+   * One question at a time.
+   *
+   * Every request here is answered with the whole of the user's data, so an
+   * answer is only meaningful beside the others: install two out of order and
+   * the older snapshot quietly undoes the newer change. Ordering the answers
+   * after the fact cannot be done from this side -- the renderer knows when it
+   * asked, the server knows when it committed, and those are not the same
+   * list. Two requests sent together can arrive inverted, and then the server
+   * commits the newer intent first and the older one last, so the file ends up
+   * holding the change the person made first.
+   *
+   * Asking one at a time removes the question instead of answering it. It is
+   * what the server already does with its own writes, for the same reason, and
+   * it costs a queued request the round trip ahead of it -- milliseconds, to a
+   * server on this machine, while the guess is on screen already.
+   *
+   * Neither this nor `confirmed` is a signal: nothing renders them, and a
+   * signal written from inside a subscription would be change detection for
+   * its own sake.
+   */
+  private pending: Promise<unknown> = Promise.resolve();
+
+  /**
+   * The last state the server actually gave us, which is the only thing a
+   * failed write can safely fall back to. It is not what the interface shows:
+   * `state` is this plus whatever guesses are still waiting for an answer.
+   */
+  private confirmed: UserData = DEFAULT_USER_DATA;
+
   readonly settings = computed(() => this.state().settings);
 
   /** Favourite ids in the server's order: most recently added first. */
@@ -43,6 +74,18 @@ export class UserDataStore {
 
   /** Membership is asked once per card, so the set is derived once per change. */
   private readonly favouriteSet = computed(() => new Set(this.state().favourites));
+
+  /** Play records in the server's order: most recently played first. */
+  readonly history = computed(() => this.state().history);
+
+  /**
+   * Derived once per change rather than searched per card. The catalog page
+   * asks for every visible game at once, which would otherwise be a linear
+   * scan of the history for each one.
+   */
+  private readonly historyByGame = computed(
+    () => new Map(this.state().history.map((record) => [record.gameId, record])),
+  );
 
   /**
    * True once the file has been read. Bootstrap waits for that, so this is
@@ -71,13 +114,18 @@ export class UserDataStore {
    * the wrong language or theme.
    */
   async load(): Promise<void> {
-    try {
-      this.state.set(await firstValueFrom(this.api.getUserData()));
-      this.loaded.set(true);
-      this.readError.set(null);
-    } catch (error: unknown) {
-      this.readError.set(describeApiError(error));
-    }
+    // In the same queue as the writes. A read is another whole-state answer,
+    // and the retry on the settings page can be pressed while a write is
+    // still in flight.
+    await this.enqueue(async () => {
+      try {
+        this.apply(await firstValueFrom(this.api.getUserData()));
+        this.loaded.set(true);
+        this.readError.set(null);
+      } catch (error: unknown) {
+        this.readError.set(describeApiError(error));
+      }
+    });
   }
 
   isFavourite(gameId: string): boolean {
@@ -100,6 +148,27 @@ export class UserDataStore {
     );
   }
 
+  /** What is known about this game having been played, or nothing. */
+  playRecord(gameId: string): PlayRecord | undefined {
+    return this.historyByGame().get(gameId);
+  }
+
+  /**
+   * Counts a launch the main process already allowed.
+   *
+   * Not optimistic, unlike the other writes: nobody is waiting to see a
+   * counter move, the game has just opened in another window, and a guess
+   * that had to be rolled back would be a number flickering for no reason.
+   * A failure here is reported like any other failed write.
+   */
+  recordLaunch(gameId: string): void {
+    this.send(this.api.recordLaunch(gameId));
+  }
+
+  clearHistory(): void {
+    this.send(this.api.clearHistory());
+  }
+
   setLanguage(language: Language): void {
     this.saveSettings({ ...this.settings(), language });
   }
@@ -117,26 +186,76 @@ export class UserDataStore {
    *
    * Waiting for the round trip would make a heart take a visible moment to
    * fill, for an API on this machine that will almost always succeed. So the
-   * change is shown immediately and the previous state is kept: if the write
-   * fails -- a full disk, a read-only directory -- it is put back and the
-   * failure is reported, rather than leaving the interface claiming something
-   * that is not on disk.
+   * change is shown immediately, and if the write fails -- a full disk, a
+   * read-only directory -- the interface falls back rather than going on
+   * claiming something that is not on disk.
+   *
+   * It falls back to the last answer the server gave, not to what was on
+   * screen a moment ago. Those differ exactly when two guesses overlap: the
+   * second one captures the first one's guess as its "before", so restoring
+   * that would leave a rejected change on screen once both writes fail. The
+   * last confirmed state is the only thing here known to be true.
+   *
+   * The cost is a guess still in flight disappearing for a moment when an
+   * unrelated one fails. It comes back as soon as its own answer lands, and a
+   * flicker is a smaller thing to be wrong about than a favourite the file
+   * does not have.
    *
    * On success the server's own answer replaces the guess. That matters for
    * more than tidiness: the server is the one that knows the resulting order.
    */
   private save(optimistic: UserData, request: Observable<UserData>): void {
-    const previous = this.state();
-
     this.state.set(optimistic);
+    this.send(request, () => this.state.set(this.confirmed));
+  }
+
+  /**
+   * Sends one write and installs whatever the server answers.
+   *
+   * `onFailure` is how the optimistic callers put their guess away again;
+   * `recordLaunch` and `clearHistory` pass nothing, because they never made
+   * one -- the state is left alone until the server answers, and there is
+   * therefore nothing to roll back if it does not.
+   */
+  private send(request: Observable<UserData>, onFailure?: () => void): void {
     this.writeError.set(null);
 
-    request.subscribe({
-      next: (confirmed) => this.state.set(confirmed),
-      error: (error: unknown) => {
-        this.state.set(previous);
+    void this.enqueue(async () => {
+      try {
+        // Subscribing is what sends the request, and `firstValueFrom` only
+        // subscribes when the queue reaches it. That is the whole mechanism:
+        // the request is built when the person acts and sent when its turn
+        // comes.
+        this.apply(await firstValueFrom(request));
+      } catch (error: unknown) {
+        onFailure?.();
         this.writeError.set(describeApiError(error));
-      },
+      }
     });
+  }
+
+  /**
+   * Runs one task after the one before it, whatever became of that one.
+   *
+   * A task that threw must not block the ones behind it, so the chain is
+   * continued from the settled promise either way -- the same shape, and for
+   * the same reason, as the server's own write queue.
+   */
+  private enqueue(task: () => Promise<void>): Promise<void> {
+    const run = this.pending.then(task, task);
+    this.pending = run;
+    return run;
+  }
+
+  /**
+   * Installs a whole-state answer as the new truth.
+   *
+   * There is no ordering check here, and that is the point of the queue: no
+   * second answer can be outstanding, so the latest one to arrive is the
+   * latest the server gave.
+   */
+  private apply(data: UserData): void {
+    this.confirmed = data;
+    this.state.set(data);
   }
 }

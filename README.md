@@ -1,8 +1,8 @@
 # Game Launcher
 
 A desktop catalog of browser games: browse, search, filter, keep favourites,
-open a game page and launch the game in the system browser. Built as a learning
-project around
+open a game page, launch the game in the system browser and find your way back
+to what you were playing. Built as a learning project around
 **Angular 22 + Electron 45 + Express 5 + JSON storage**.
 
 > The launcher does not install or run games. It is a catalog that hands a
@@ -241,6 +241,8 @@ to guess what came back.
 | `PUT` | `/api/user-data/settings` | token | `200` the whole user data | `400` unknown language, theme or extra key, `401` |
 | `PUT` | `/api/user-data/favourites/:gameId` | token | `200` the whole user data | `400` bad slug, `404` unknown id, `401` |
 | `DELETE` | `/api/user-data/favourites/:gameId` | token | `200` the whole user data | `400` bad slug, `404` unknown id, `401` |
+| `POST` | `/api/user-data/history/:gameId` | token | `200` the whole user data | `400` bad slug, `404` unknown id, `401` |
+| `DELETE` | `/api/user-data/history` | token | `200` the whole user data | `401` |
 
 Anything else under `/api` answers `404` with a JSON body rather than Express's
 default HTML page.
@@ -250,7 +252,10 @@ touched. It is a few dozen bytes, and it means the renderer replaces its state
 with the server's answer instead of merging into it.
 
 `PUT` and `DELETE` on a favourite are idempotent: adding one twice, or removing
-one that was never there, succeeds and writes nothing.
+one that was never there, succeeds and writes nothing. Recording a launch is
+the one route that is deliberately not -- sending it twice means the game was
+launched twice, which is the whole point of it, so it is a `POST` rather than a
+verb that would be promising something false.
 
 ### Why a local HTTP server is not automatically safe
 
@@ -420,7 +425,11 @@ server and never by the renderer:
 ```json
 {
   "settings": { "language": "ru", "theme": "system" },
-  "favourites": ["hexgl", "2048"]
+  "favourites": ["hexgl", "2048"],
+  "history": [
+    { "gameId": "hexgl", "launchCount": 12, "lastPlayedAt": "2026-11-02T15:01:03.681Z" },
+    { "gameId": "2048", "launchCount": 9, "lastPlayedAt": "2026-11-01T15:01:23.681Z" }
+  ]
 }
 ```
 
@@ -449,6 +458,8 @@ undo.
 | not JSON at all | moved aside, defaults loaded, warning logged |
 | an unknown language or theme | that field falls back, the rest is kept, warning logged |
 | a favourite that is not a game | that entry is dropped, the rest is kept |
+| a history entry that is malformed, duplicated or for an unknown game | that entry is dropped, the rest is kept |
+| a history in the wrong order | sorted back into order on read |
 | cannot be read at all (permissions, I/O) | startup fails loudly |
 
 That last row is deliberate and is the one case that does stop the launcher. A
@@ -482,12 +493,115 @@ loses them. Favourites are unaffected either way: they are changed one id at a
 time, so the server merges rather than replaces.
 
 **The renderer guesses, the server decides.** Pressing a heart fills it at
-once and sends the request afterwards. If the write fails, the store puts the
-previous state back and the shell shows a banner explaining it; on success the
-server's own answer replaces the guess, which is also how the renderer learns
-the resulting order. Waiting for a round trip to a server on this machine would
-make every heart feel slow to protect against a case that ends in an error
-message either way.
+once and sends the request afterwards. If the write fails the shell shows a
+banner and the interface falls back; on success the server's own answer
+replaces the guess, which is also how the renderer learns the resulting order.
+Waiting for a round trip to a server on this machine would make every heart
+feel slow to protect against a case that ends in an error message either way.
+
+**It falls back to the last answer, not to the last screen.** Those differ
+exactly when two guesses overlap: the second one captures the first one's
+guess as its "before", so restoring that would leave a rejected change on
+screen once both writes fail -- press two hearts in the same moment against a
+read-only directory and one of them stays filled over a file that has
+neither. The last confirmed state is the only thing the renderer knows to be
+true, so that is what it goes back to. The cost is a guess still in flight
+disappearing for a moment when an unrelated one fails, which the arrival of
+its own answer undoes.
+
+**One question at a time.** Every write is answered with the whole of the
+user's data, which is what spares the renderer from merging -- and is exactly
+why two of them must not overlap. Two writes can easily be in flight at once:
+a heart pressed while a launch is being recorded, say. They travel on separate
+connections, so nothing makes the answers come back in the order the questions
+were asked, and the older snapshot landing last would quietly undo the newer
+change on screen although the server had already written it to disk. Worse,
+the requests themselves can arrive inverted, and then the server commits the
+newer intent first and the older one last, so the *file* ends up holding the
+change the person made first.
+
+Dropping stale answers in the renderer would only fix the first of those. So
+the renderer sends one request at a time instead, through a promise chain --
+the request is built when the person acts and sent when the one ahead of it
+has answered. That is the same thing the server does with its own writes, for
+the same reason, and both problems stop existing rather than being detected: a
+queued request costs the round trip in front of it, which to a server on this
+machine is milliseconds, and the guess is on screen the whole time anyway.
+Reproduced by delaying one answer in the renderer -- the second request was
+not sent until the first had landed -- and the read-only-directory case
+re-checked the same way.
+
+### Play history
+
+The launcher counts the games it opened, so the catalog can lead with what you
+were last playing rather than with the alphabet.
+
+**A record per game, not an entry per launch.** This is the decision the rest
+of the feature follows from. An event log would grow without bound, and nobody
+has ever wanted to read the four-thousandth line of one; two numbers --
+`launchCount` and `lastPlayedAt` -- answer both questions the interface asks,
+in space bounded by the size of the catalog. A timeline would be a different
+feature with a different shape, not a bigger version of this one.
+
+**An array, not an object keyed by game id.** A JSON object read from a file
+the person can edit is an object with keys somebody else chose, and
+`__proto__` among them is a class of bug this shape simply does not have. The
+order is the one the interface wants -- most recently played first -- so it is
+maintained by moving the record to the front on each write rather than by
+sorting on read.
+
+**The stored shape grew without a migration.** A file written by the previous
+version has no `history` key at all, and that is not an error: the schema's
+`.catch` on every field covers a missing one exactly as it covers an invalid
+one, so an older file loads with its settings and favourites intact and an
+empty history beside them. There is no migration script and no version number,
+because the loader already had to tolerate a file it did not write.
+
+**Only a launch that happened is counted.** The main process is the one that
+decides whether an address may be opened; the renderer counts the launch only
+after being told the address was actually opened. A refused or failed launch
+is not a game that was played, and counting the press rather than the result
+would make the number mean nothing in exactly the cases worth knowing about.
+
+A compromised renderer could still inflate its own counter, and that is an
+acceptable thing for it to be able to do -- the number is the person's own,
+and the decision that matters, which address the operating system is handed,
+was never the renderer's to make.
+
+One honest caveat: in the browser-only development mode there is no main
+process, so `window.open` stands in for it. With `noopener` set it returns
+`null` whether or not the page opened, so a popup the browser blocked still
+counts as a launch there. A packaged launcher never takes that branch.
+
+**The write is not optimistic.** Favourites fill the heart first and ask the
+server afterwards, because a heart that waits for a round trip feels slow.
+Nobody is watching a counter when they press Play -- the game has just opened
+in another window -- so the launch is sent, and the number changes when the
+server says it changed. There is nothing to guess and therefore nothing to
+roll back.
+
+**"3 days ago" is computed, not stored.** `RelativeTimeService` wraps
+`Intl.RelativeTimeFormat`, which produces "yesterday" and "на прошлой неделе"
+in the active language without a plural rule written anywhere in this project.
+It is a service rather than a pipe for two reasons: it reads the language
+signal, so every `computed` that calls it re-runs on a switch, where a pure
+pipe would keep the old wording until its input happened to change; and it
+reads a clock signal that advances once a minute, so a label left on screen
+ages instead of insisting it is still "now" an hour later.
+
+The one place the catalog's own labels do count things -- "Launches: 12" --
+says it with a colon rather than an agreeing noun. Russian needs three forms
+where English needs two, `Intl.PluralRules` would supply them, and the typed
+dictionaries would then need `few` and `many` keys in English that English
+never asks for. A label that reads correctly for every number is worth more
+than the machinery to decline one.
+
+**Clearing it.** The settings page can forget the whole history, behind a
+confirmation, because it is the only control in the application that destroys
+something. The confirmation is a second press rather than a system dialog: it
+keeps the answer next to the question and does not block the window to ask.
+Forgetting one game is not offered -- a route nobody calls is a route nobody
+keeps correct.
 
 ### Theme
 

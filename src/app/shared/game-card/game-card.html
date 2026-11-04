@@ -27,5 +27,9 @@
     </p>
 
     <p class="card__summary">{{ language.text(game().summary) }}</p>
+
+    @if (meta(); as meta) {
+      <p class="card__meta">{{ meta }}</p>
+    }
   </div>
 </article>

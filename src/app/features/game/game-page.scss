@@ -207,3 +207,18 @@
   color: var(--text-secondary);
   font-size: 12.5px;
 }
+
+.play__history {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin: 6px 0 0;
+  color: var(--text-secondary);
+  font-size: 12.5px;
+  /* Tabular figures so a counter ticking from 9 to 10 does not shift the row. */
+  font-variant-numeric: tabular-nums;
+
+  &--empty {
+    opacity: 0.75;
+  }
+}

@@ -49,6 +49,17 @@
 
         <p class="play__hint">{{ t('game.playHint') }}</p>
 
+        @if (record(); as record) {
+          <!-- The exact moment is in the tooltip; the line itself stays short. -->
+          <p class="play__history" [title]="relativeTime.exact(record.lastPlayedAt)">
+            <span>{{ t('game.launches', { count: record.launchCount }) }}</span>
+            <span aria-hidden="true">·</span>
+            <span>{{ t('game.lastPlayed', { when: lastPlayed() }) }}</span>
+          </p>
+        } @else {
+          <p class="play__history play__history--empty">{{ t('game.neverPlayed') }}</p>
+        }
+
         @if (playState() === 'rejected' || playState() === 'failed') {
           <p class="play__problem">
             {{ playState() === 'rejected' ? t('game.playRejected') : t('game.playFailed') }}

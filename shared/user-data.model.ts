@@ -28,6 +28,24 @@ export interface UserSettings {
   readonly theme: ThemePreference;
 }
 
+/**
+ * What the launcher remembers about one game having been played.
+ *
+ * A record per game rather than an entry per launch, which is the decision
+ * worth noticing. An event log would grow without bound, and nobody has ever
+ * wanted to read the four-thousandth line of one; two numbers answer both
+ * questions the interface actually asks -- how often, and how long ago -- in
+ * space bounded by the size of the catalog. A timeline would be a different
+ * feature with a different shape, not a bigger version of this one.
+ */
+export interface PlayRecord {
+  readonly gameId: string;
+  /** Launches that the main process actually allowed. At least 1. */
+  readonly launchCount: number;
+  /** ISO-8601, UTC, written by the server. The renderer never supplies it. */
+  readonly lastPlayedAt: string;
+}
+
 export interface UserData {
   readonly settings: UserSettings;
   /**
@@ -36,6 +54,15 @@ export interface UserData {
    * corrected in a later version should not leave a stale copy in favourites.
    */
   readonly favourites: readonly string[];
+  /**
+   * Most recently played first, so the order the interface wants is the order
+   * on disk and no sort is needed to answer "what did I play last".
+   *
+   * An array rather than an object keyed by game id. A JSON object read from
+   * a file the user can edit is an object with attacker-chosen keys, and
+   * `__proto__` among them is a class of bug this shape simply does not have.
+   */
+  readonly history: readonly PlayRecord[];
 }
 
 /**
@@ -48,4 +75,5 @@ export interface UserData {
 export const DEFAULT_USER_DATA: UserData = {
   settings: { language: 'en', theme: 'system' },
   favourites: [],
+  history: [],
 };
