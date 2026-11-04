@@ -23,6 +23,15 @@ import { GameCover } from '../game-cover/game-cover';
 export class GameCard {
   readonly game = input.required<Game>();
 
+  /**
+   * One short line under the summary, or nothing. The catalog leaves it
+   * empty; the recently-played strip uses it to say how long ago. Passed in
+   * rather than derived here, because a card that looked up play history for
+   * itself would make every grid of cards do that work whether it showed it
+   * or not.
+   */
+  readonly meta = input<string | null>(null);
+
   protected readonly language = inject(LanguageService);
 
   protected genreLabelKey(genre: Genre): string {

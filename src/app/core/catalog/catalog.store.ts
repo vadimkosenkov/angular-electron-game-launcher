@@ -5,8 +5,9 @@ import type { Game, Genre } from '@shared/game.model';
 import { describeApiError } from '../api/api-error';
 import { ApiClient } from '../api/api.client';
 import { LanguageService } from '../i18n/language.service';
+import { UserDataStore } from '../user-data/user-data.store';
 
-export const SORT_ORDERS = ['title-asc', 'title-desc', 'year-desc'] as const;
+export const SORT_ORDERS = ['title-asc', 'title-desc', 'year-desc', 'last-played'] as const;
 
 export type SortOrder = (typeof SORT_ORDERS)[number];
 
@@ -28,6 +29,7 @@ type CatalogState =
 export class CatalogStore {
   private readonly api = inject(ApiClient);
   private readonly language = inject(LanguageService);
+  private readonly userData = inject(UserDataStore);
 
   private readonly state = signal<CatalogState>({ kind: 'loading' });
 
@@ -111,8 +113,38 @@ export class CatalogStore {
       case 'title-desc':
         return games.sort((a, b) => b.title.localeCompare(a.title, locale));
       case 'year-desc':
-        // Games with no recorded year sort last rather than as year zero.
-        return games.sort((a, b) => (b.releaseYear ?? -Infinity) - (a.releaseYear ?? -Infinity));
+        return games.sort((a, b) => descending(a.releaseYear, b.releaseYear));
+      case 'last-played':
+        return games.sort((a, b) => descending(this.playedAt(a), this.playedAt(b)));
     }
   }
+
+  /** When this game was last launched, or nothing if it never was. */
+  private playedAt(game: Game): number | undefined {
+    const record = this.userData.playRecord(game.id);
+    return record === undefined ? undefined : Date.parse(record.lastPlayedAt);
+  }
+}
+
+/**
+ * Largest first, with everything that has no value at all at the end.
+ *
+ * Written as comparisons rather than as `(b ?? -Infinity) - (a ?? -Infinity)`,
+ * which was how the year sort did it until this stage. That expression is
+ * `NaN` when both sides are missing -- four games in the catalog have no
+ * release year -- and a comparator that returns `NaN` is telling the sort
+ * nothing while looking like it answered. V8 reads it as zero and the result
+ * happens to be reasonable, which is the worst way for a bug to behave.
+ */
+function descending(a: number | undefined, b: number | undefined): number {
+  if (a === b) {
+    return 0;
+  }
+  if (a === undefined) {
+    return 1;
+  }
+  if (b === undefined) {
+    return -1;
+  }
+  return b - a;
 }

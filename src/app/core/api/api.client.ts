@@ -44,6 +44,16 @@ export class ApiClient {
       ? unwrap(this.http.put<ApiSuccess<UserData>>(url, {}))
       : unwrap(this.http.delete<ApiSuccess<UserData>>(url));
   }
+
+  /** Sent only after the main process has confirmed it opened the game. */
+  recordLaunch(gameId: string): Observable<UserData> {
+    const url = `/api/user-data/history/${encodeURIComponent(gameId)}`;
+    return unwrap(this.http.post<ApiSuccess<UserData>>(url, {}));
+  }
+
+  clearHistory(): Observable<UserData> {
+    return unwrap(this.http.delete<ApiSuccess<UserData>>('/api/user-data/history'));
+  }
 }
 
 function unwrap<T>(response: Observable<ApiSuccess<T>>): Observable<T> {

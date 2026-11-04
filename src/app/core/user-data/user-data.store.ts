@@ -4,6 +4,7 @@ import { firstValueFrom, type Observable } from 'rxjs';
 import type { Language } from '@shared/game.model';
 import {
   DEFAULT_USER_DATA,
+  type PlayRecord,
   type ThemePreference,
   type UserData,
   type UserSettings,
@@ -43,6 +44,18 @@ export class UserDataStore {
 
   /** Membership is asked once per card, so the set is derived once per change. */
   private readonly favouriteSet = computed(() => new Set(this.state().favourites));
+
+  /** Play records in the server's order: most recently played first. */
+  readonly history = computed(() => this.state().history);
+
+  /**
+   * Derived once per change rather than searched per card. The catalog page
+   * asks for every visible game at once, which would otherwise be a linear
+   * scan of the history for each one.
+   */
+  private readonly historyByGame = computed(
+    () => new Map(this.state().history.map((record) => [record.gameId, record])),
+  );
 
   /**
    * True once the file has been read. Bootstrap waits for that, so this is
@@ -100,6 +113,27 @@ export class UserDataStore {
     );
   }
 
+  /** What is known about this game having been played, or nothing. */
+  playRecord(gameId: string): PlayRecord | undefined {
+    return this.historyByGame().get(gameId);
+  }
+
+  /**
+   * Counts a launch the main process already allowed.
+   *
+   * Not optimistic, unlike the other writes: nobody is waiting to see a
+   * counter move, the game has just opened in another window, and a guess
+   * that had to be rolled back would be a number flickering for no reason.
+   * A failure here is reported like any other failed write.
+   */
+  recordLaunch(gameId: string): void {
+    this.send(this.api.recordLaunch(gameId));
+  }
+
+  clearHistory(): void {
+    this.send(this.api.clearHistory());
+  }
+
   setLanguage(language: Language): void {
     this.saveSettings({ ...this.settings(), language });
   }
@@ -137,6 +171,19 @@ export class UserDataStore {
         this.state.set(previous);
         this.writeError.set(describeApiError(error));
       },
+    });
+  }
+
+  /**
+   * A write with nothing to guess: the state is left alone until the server
+   * answers, and there is therefore nothing to roll back if it does not.
+   */
+  private send(request: Observable<UserData>): void {
+    this.writeError.set(null);
+
+    request.subscribe({
+      next: (confirmed) => this.state.set(confirmed),
+      error: (error: unknown) => this.writeError.set(describeApiError(error)),
     });
   }
 }

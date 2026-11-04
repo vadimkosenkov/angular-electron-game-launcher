@@ -221,6 +221,24 @@ app-root {
     outline: 2px solid var(--accent);
     outline-offset: 2px;
   }
+
+  /*
+   * For the press that destroys something. Tinted rather than filled: a solid
+   * red button is the loudest thing on a settings page, and this one is only
+   * reachable after a confirmation has already been asked for.
+   */
+  &--danger {
+    border-color: color-mix(in srgb, var(--state-danger) 45%, var(--border-subtle));
+    color: var(--state-danger);
+
+    &:hover {
+      border-color: var(--state-danger);
+    }
+
+    &:focus-visible {
+      outline-color: var(--state-danger);
+    }
+  }
 }
 
 /* The "n of m" line every list page prints above its grid. */

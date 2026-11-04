@@ -36,6 +36,31 @@
     </label>
   </div>
 
+  @if (showRecent()) {
+    <section class="recent">
+      <h2 class="recent__heading">{{ t('discover.recentTitle') }}</h2>
+      <!--
+        The catalog's own grid, deliberately: the two sections then agree on
+        how many columns the window has, and the strip's cards line up with
+        the ones below instead of forming a second, narrower rhythm.
+      -->
+      <ul class="grid">
+        @for (entry of recent(); track entry.game.id) {
+          <li class="grid__cell">
+            <app-game-card [game]="entry.game" [meta]="entry.when" />
+          </li>
+        }
+      </ul>
+    </section>
+
+    <!--
+      Only needed once a section sits above the catalog: without the strip the
+      page heading is already the heading for the grid, and a second one would
+      be a label for the whole page's only list.
+    -->
+    <h2 class="recent__heading">{{ t('discover.recentAll') }}</h2>
+  }
+
   @if (store.isLoading()) {
     <p class="notice">{{ t('state.loading') }}</p>
   } @else if (store.failure(); as failure) {
