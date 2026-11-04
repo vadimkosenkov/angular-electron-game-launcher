@@ -509,22 +509,27 @@ true, so that is what it goes back to. The cost is a guess still in flight
 disappearing for a moment when an unrelated one fails, which the arrival of
 its own answer undoes.
 
-**A late answer is not installed.** Every write is answered with the whole of
-the user's data, which is what spares the renderer from merging -- and is
-exactly why an answer that arrives out of order has to be dropped. Two writes
-can be in flight at once: a heart pressed while a launch is being recorded,
-say. They travel on separate connections, and nothing makes the answers arrive
-in the order the questions were asked. So each whole-state answer carries a
-ticket, and one older than the last applied is ignored; otherwise the earlier
-snapshot would land last and quietly undo the newer change on screen, although
-the server had already written it to disk. Reproduced by holding one answer
-back in the renderer, and confirmed fixed the same way.
+**One question at a time.** Every write is answered with the whole of the
+user's data, which is what spares the renderer from merging -- and is exactly
+why two of them must not overlap. Two writes can easily be in flight at once:
+a heart pressed while a launch is being recorded, say. They travel on separate
+connections, so nothing makes the answers come back in the order the questions
+were asked, and the older snapshot landing last would quietly undo the newer
+change on screen although the server had already written it to disk. Worse,
+the requests themselves can arrive inverted, and then the server commits the
+newer intent first and the older one last, so the *file* ends up holding the
+change the person made first.
 
-What this does not do is reorder the requests. If they reach the server
-inverted it commits them inverted and the renderer applies what it is told --
-only the server knows its own commit order, and it is not asked, because the
-cost of the gap is a view briefly behind the file that the next answer
-corrects.
+Dropping stale answers in the renderer would only fix the first of those. So
+the renderer sends one request at a time instead, through a promise chain --
+the request is built when the person acts and sent when the one ahead of it
+has answered. That is the same thing the server does with its own writes, for
+the same reason, and both problems stop existing rather than being detected: a
+queued request costs the round trip in front of it, which to a server on this
+machine is milliseconds, and the guess is on screen the whole time anyway.
+Reproduced by delaying one answer in the renderer -- the second request was
+not sent until the first had landed -- and the read-only-directory case
+re-checked the same way.
 
 ### Play history
 

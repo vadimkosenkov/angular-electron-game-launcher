@@ -38,12 +38,27 @@ export class UserDataStore {
   private readonly writeError = signal<string | null>(null);
 
   /**
-   * Counters and the last answer, none of them signals: nothing renders them,
-   * and a signal written from inside a subscription would be change detection
-   * for its own sake.
+   * One question at a time.
+   *
+   * Every request here is answered with the whole of the user's data, so an
+   * answer is only meaningful beside the others: install two out of order and
+   * the older snapshot quietly undoes the newer change. Ordering the answers
+   * after the fact cannot be done from this side -- the renderer knows when it
+   * asked, the server knows when it committed, and those are not the same
+   * list. Two requests sent together can arrive inverted, and then the server
+   * commits the newer intent first and the older one last, so the file ends up
+   * holding the change the person made first.
+   *
+   * Asking one at a time removes the question instead of answering it. It is
+   * what the server already does with its own writes, for the same reason, and
+   * it costs a queued request the round trip ahead of it -- milliseconds, to a
+   * server on this machine, while the guess is on screen already.
+   *
+   * Neither this nor `confirmed` is a signal: nothing renders them, and a
+   * signal written from inside a subscription would be change detection for
+   * its own sake.
    */
-  private issued = 0;
-  private applied = 0;
+  private pending: Promise<unknown> = Promise.resolve();
 
   /**
    * The last state the server actually gave us, which is the only thing a
@@ -99,18 +114,18 @@ export class UserDataStore {
    * the wrong language or theme.
    */
   async load(): Promise<void> {
-    const ticket = ++this.issued;
-
-    try {
-      // Through the same gate as a write. A read is another whole-state
-      // answer, and the retry on the settings page can be pressed while one
-      // is still in flight.
-      this.apply(ticket, await firstValueFrom(this.api.getUserData()));
-      this.loaded.set(true);
-      this.readError.set(null);
-    } catch (error: unknown) {
-      this.readError.set(describeApiError(error));
-    }
+    // In the same queue as the writes. A read is another whole-state answer,
+    // and the retry on the settings page can be pressed while a write is
+    // still in flight.
+    await this.enqueue(async () => {
+      try {
+        this.apply(await firstValueFrom(this.api.getUserData()));
+        this.loaded.set(true);
+        this.readError.set(null);
+      } catch (error: unknown) {
+        this.readError.set(describeApiError(error));
+      }
+    });
   }
 
   isFavourite(gameId: string): boolean {
@@ -190,65 +205,56 @@ export class UserDataStore {
    * more than tidiness: the server is the one that knows the resulting order.
    */
   private save(optimistic: UserData, request: Observable<UserData>): void {
-    const ticket = ++this.issued;
-
     this.state.set(optimistic);
+    this.send(request, () => this.state.set(this.confirmed));
+  }
+
+  /**
+   * Sends one write and installs whatever the server answers.
+   *
+   * `onFailure` is how the optimistic callers put their guess away again;
+   * `recordLaunch` and `clearHistory` pass nothing, because they never made
+   * one -- the state is left alone until the server answers, and there is
+   * therefore nothing to roll back if it does not.
+   */
+  private send(request: Observable<UserData>, onFailure?: () => void): void {
     this.writeError.set(null);
 
-    request.subscribe({
-      next: (confirmed) => this.apply(ticket, confirmed),
-      error: (error: unknown) => {
-        // Not if something newer has already landed: that answer is from the
-        // server too, and it is the more recent of the two truths.
-        if (ticket > this.applied) {
-          this.state.set(this.confirmed);
-        }
+    void this.enqueue(async () => {
+      try {
+        // Subscribing is what sends the request, and `firstValueFrom` only
+        // subscribes when the queue reaches it. That is the whole mechanism:
+        // the request is built when the person acts and sent when its turn
+        // comes.
+        this.apply(await firstValueFrom(request));
+      } catch (error: unknown) {
+        onFailure?.();
         this.writeError.set(describeApiError(error));
-      },
+      }
     });
   }
 
   /**
-   * A write with nothing to guess: the state is left alone until the server
-   * answers, and there is therefore nothing to roll back if it does not.
+   * Runs one task after the one before it, whatever became of that one.
+   *
+   * A task that threw must not block the ones behind it, so the chain is
+   * continued from the settled promise either way -- the same shape, and for
+   * the same reason, as the server's own write queue.
    */
-  private send(request: Observable<UserData>): void {
-    const ticket = ++this.issued;
-
-    this.writeError.set(null);
-
-    request.subscribe({
-      next: (confirmed) => this.apply(ticket, confirmed),
-      error: (error: unknown) => this.writeError.set(describeApiError(error)),
-    });
+  private enqueue(task: () => Promise<void>): Promise<void> {
+    const run = this.pending.then(task, task);
+    this.pending = run;
+    return run;
   }
 
   /**
-   * Installs a whole-state answer, unless an answer issued later already is.
+   * Installs a whole-state answer as the new truth.
    *
-   * Every request here is answered with the whole of the user's data, which
-   * is what spares the renderer from merging -- and is exactly why a late
-   * answer must not be installed. Two of them can be in flight at once: a
-   * heart pressed while a launch is being recorded, a language switched while
-   * a read is retrying. They travel on separate connections, and nothing makes
-   * the answers arrive in the order the questions were asked. Without this
-   * watermark the older snapshot would land last and quietly undo the newer
-   * change on screen, although the server had already written it to disk.
-   *
-   * The mark advances on answers applied rather than on questions asked, so a
-   * later write that fails does not also discard an earlier one that worked.
-   *
-   * What it does not do is reorder the requests themselves. If those reach the
-   * server inverted it commits them inverted, and only the server knows its
-   * own commit order -- it is not asked, because the cost of the gap is a view
-   * briefly behind the file, which the next answer corrects.
+   * There is no ordering check here, and that is the point of the queue: no
+   * second answer can be outstanding, so the latest one to arrive is the
+   * latest the server gave.
    */
-  private apply(ticket: number, data: UserData): void {
-    if (ticket <= this.applied) {
-      return;
-    }
-
-    this.applied = ticket;
+  private apply(data: UserData): void {
     this.confirmed = data;
     this.state.set(data);
   }
