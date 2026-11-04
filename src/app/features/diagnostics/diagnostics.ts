@@ -3,13 +3,15 @@ import { forkJoin } from 'rxjs';
 
 import { TranslocoDirective } from '@jsverse/transloco';
 import type { HealthStatus } from '@shared/api.model';
+import type { LinkCheck, LinkStatus } from '@shared/availability.model';
 
 import { describeApiError } from '../../core/api/api-error';
 import { ApiClient } from '../../core/api/api.client';
 import { SessionTokenService } from '../../core/api/session-token.service';
+import { AvailabilityStore } from '../../core/availability/availability.store';
 import { LauncherBridgeService } from '../../core/bridge/launcher-bridge';
 
-type DiagnosticState = 'ok' | 'danger' | 'neutral';
+type DiagnosticState = 'ok' | 'warn' | 'danger' | 'neutral';
 
 interface DiagnosticRow {
   readonly label: string;
@@ -48,6 +50,13 @@ export class Diagnostics {
   private readonly sessionToken = inject(SessionTokenService);
   private readonly api = inject(ApiClient);
 
+  /**
+   * Exposed to the template rather than wrapped, because the button drives it
+   * directly: this panel is the only place in the application that can start
+   * a link check.
+   */
+  protected readonly links = inject(AvailabilityStore);
+
   private readonly apiState = signal<ApiState>({ kind: 'loading' });
 
   // Narrowing a discriminated union inside a template needs a value the type
@@ -62,6 +71,40 @@ export class Diagnostics {
   protected readonly apiResult = computed(() => {
     const state = this.apiState();
     return state.kind === 'ready' ? state : null;
+  });
+
+  /** One row per game, in catalog order, in the same register as the rest. */
+  protected readonly linkRows = computed<readonly DiagnosticRow[]>(() =>
+    this.links.checks().map((check) => ({
+      label: check.gameId,
+      value: describeCheck(check),
+      state: toLinkState(check.status),
+    })),
+  );
+
+  /** `15 reachable, 1 insecure`, or null before any check has run. */
+  protected readonly linkTally = computed(() => {
+    const counts = new Map<LinkStatus, number>();
+    for (const check of this.links.checks()) {
+      counts.set(check.status, (counts.get(check.status) ?? 0) + 1);
+    }
+    return counts.size === 0
+      ? null
+      : [...counts].map(([status, count]) => `${count} ${status}`).join(', ');
+  });
+
+  /**
+   * The instant itself, in UTC, rather than "nine minutes ago".
+   *
+   * Everywhere a person reads this it is relative and translated; here the
+   * surrounding labels are deliberately English, and a localised phrase in
+   * the middle of them reads as a bug. An ISO timestamp belongs to no
+   * language, which is the same reason the rest of this page prints raw
+   * measurements.
+   */
+  protected readonly lastCheckedAt = computed(() => {
+    const at = this.links.lastCheckedAt();
+    return at === null ? null : at.replace(/\.\d+Z$/, 'Z');
   });
 
   protected readonly panels: readonly DiagnosticPanel[] = [
@@ -150,4 +193,31 @@ function toFlagState(flag: boolean | undefined): DiagnosticState {
     return 'neutral';
   }
   return flag ? 'ok' : 'danger';
+}
+
+/**
+ * The status, and the one fact behind it. `detail` carries the HTTP status
+ * when there is anything to say about it, so printing both would repeat
+ * `HTTP 503` next to `503`.
+ */
+function describeCheck(check: LinkCheck): string {
+  const detail = check.detail ?? (check.httpStatus === undefined ? null : `${check.httpStatus}`);
+  return detail === null ? check.status : `${check.status} · ${detail}`;
+}
+
+/**
+ * Three colours for five states. `refused` and `unknown` are the launcher
+ * saying it learned nothing, and a colour would dress that as a verdict.
+ */
+function toLinkState(status: LinkStatus): DiagnosticState {
+  switch (status) {
+    case 'reachable':
+      return 'ok';
+    case 'insecure':
+      return 'warn';
+    case 'missing':
+      return 'danger';
+    default:
+      return 'neutral';
+  }
 }

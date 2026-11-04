@@ -2,6 +2,7 @@ import { once } from 'node:events';
 import { createServer, type Server } from 'node:http';
 
 import { createApiApp } from './app';
+import { loadAvailability } from './storage/availability.store';
 import { loadCatalog, type Catalog } from './storage/catalog.store';
 import { loadUserData } from './storage/user-data.store';
 
@@ -55,11 +56,20 @@ export async function startApiServer(options: ApiServerOptions): Promise<ApiServ
     isKnownGame: (gameId) => catalog.findById(gameId) !== undefined,
   });
 
+  // Reads the stored link check results, and runs nothing. A check reaches
+  // other people's servers, so it happens when somebody asks for it and not
+  // as a side effect of starting the launcher.
+  const availability = await loadAvailability({
+    directory: options.userDataDir,
+    games: catalog.games,
+  });
+
   const host = options.host ?? '127.0.0.1';
 
   const app = createApiApp({
     catalog,
     userData,
+    availability,
     sessionToken: options.sessionToken,
     allowedOrigins: options.allowedOrigins ?? [],
     ...(options.staticRoot === undefined ? {} : { staticRoot: options.staticRoot }),

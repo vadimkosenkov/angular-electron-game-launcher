@@ -8,6 +8,7 @@ import type { Game } from '@shared/game.model';
 
 import { describeApiError, isNotFound } from '../../core/api/api-error';
 import { ApiClient } from '../../core/api/api.client';
+import { AvailabilityStore } from '../../core/availability/availability.store';
 import { LauncherBridgeService } from '../../core/bridge/launcher-bridge';
 import { LanguageService } from '../../core/i18n/language.service';
 import { RelativeTimeService } from '../../core/i18n/relative-time.service';
@@ -45,6 +46,7 @@ export class GamePage {
   private readonly api = inject(ApiClient);
   private readonly launcher = inject(LauncherBridgeService);
   private readonly userData = inject(UserDataStore);
+  private readonly availability = inject(AvailabilityStore);
   protected readonly language = inject(LanguageService);
   protected readonly relativeTime = inject(RelativeTimeService);
 
@@ -76,6 +78,25 @@ export class GamePage {
   protected readonly lastPlayed = computed(() => {
     const record = this.record();
     return record === undefined ? '' : this.relativeTime.format(record.lastPlayedAt);
+  });
+
+  /**
+   * What the last link check said about this game's address, or nothing if no
+   * check has run. Not run from here: opening a game page must not send a
+   * request to the game's own server before the person has asked for one.
+   */
+  protected readonly linkCheck = computed(() => {
+    const game = this.game();
+    return game === null ? undefined : this.availability.statusOf(game.id);
+  });
+
+  /**
+   * The relative time of that check, computed here so the language and the
+   * service's minute-by-minute clock are both tracked.
+   */
+  protected readonly linkCheckedWhen = computed(() => {
+    const check = this.linkCheck();
+    return check === undefined ? '' : this.relativeTime.format(check.checkedAt);
   });
 
   constructor() {

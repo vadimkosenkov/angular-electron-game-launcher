@@ -3,6 +3,7 @@ import { Injectable, inject } from '@angular/core';
 import { map, type Observable } from 'rxjs';
 
 import type { ApiSuccess, HealthStatus } from '@shared/api.model';
+import type { AvailabilityReport } from '@shared/availability.model';
 import type { Game } from '@shared/game.model';
 import type { UserData, UserSettings } from '@shared/user-data.model';
 
@@ -53,6 +54,20 @@ export class ApiClient {
 
   clearHistory(): Observable<UserData> {
     return unwrap(this.http.delete<ApiSuccess<UserData>>('/api/user-data/history'));
+  }
+
+  getAvailability(): Observable<AvailabilityReport> {
+    return unwrap(this.http.get<ApiSuccess<AvailabilityReport>>('/api/availability'));
+  }
+
+  /**
+   * Asks the server to check every address in the catalog. No body and no
+   * parameter: the server checks its own catalog, and the renderer has no way
+   * to name a target -- which is what keeps this from being a request the
+   * page can point at an address of its choosing.
+   */
+  checkLinks(): Observable<AvailabilityReport> {
+    return unwrap(this.http.post<ApiSuccess<AvailabilityReport>>('/api/availability/check', {}));
   }
 }
 

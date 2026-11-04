@@ -89,6 +89,25 @@
           <!-- Shown as text, never as an anchor: the only way out is the button. -->
           <dd class="row__value row__value--url">{{ game.playUrl }}</dd>
         </div>
+        <div class="row">
+          <dt class="row__label">{{ t('game.availability') }}</dt>
+          @if (linkCheck(); as check) {
+            <!--
+              The wording describes the response, not the game: the launcher
+              asked an address and is reporting what came back. The exact
+              moment of the check is in the tooltip.
+            -->
+            <dd
+              class="row__value"
+              [attr.data-link]="check.status"
+              [title]="relativeTime.exact(check.checkedAt)"
+            >
+              {{ t('game.linkChecked', { status: t('link.' + check.status), when: linkCheckedWhen() }) }}
+            </dd>
+          } @else {
+            <dd class="row__value row__value--muted">{{ t('game.linkNever') }}</dd>
+          }
+        </div>
       </dl>
     </section>
   }

@@ -4,10 +4,12 @@ import { securityHeaders } from './middleware/content-security-policy';
 import { errorHandler, notFoundHandler } from './middleware/error-handler';
 import { requireLocalAccess } from './middleware/local-access';
 import { requireSessionToken } from './middleware/session-token';
+import { createAvailabilityRouter } from './routes/availability.routes';
 import { createGamesRouter } from './routes/games.routes';
 import { createHealthRouter } from './routes/health.routes';
 import { createUserDataRouter } from './routes/user-data.routes';
 import { createIndexHandler } from './renderer-index';
+import type { AvailabilityStore } from './storage/availability.store';
 import type { Catalog } from './storage/catalog.store';
 import type { UserDataStore } from './storage/user-data.store';
 
@@ -15,6 +17,8 @@ export interface ApiAppOptions {
   readonly catalog: Catalog;
   /** The user's own data: favourites and settings, already read from disk. */
   readonly userData: UserDataStore;
+  /** Stored link check results, and the only thing allowed to run a check. */
+  readonly availability: AvailabilityStore;
   readonly sessionToken: string;
   /** Browser origins allowed to call the API. Empty in a packaged launcher. */
   readonly allowedOrigins: readonly string[];
@@ -44,6 +48,7 @@ export function createApiApp(options: ApiAppOptions): Express {
   app.use('/api', requireSessionToken(options.sessionToken));
   app.use('/api/games', createGamesRouter(options.catalog));
   app.use('/api/user-data', createUserDataRouter(options.userData, options.catalog));
+  app.use('/api/availability', createAvailabilityRouter(options.availability));
 
   if (options.staticRoot !== undefined) {
     // Only the branch that actually serves the renderer needs this; in

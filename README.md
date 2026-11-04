@@ -103,7 +103,10 @@ Browser-only development has no Electron to ask, so `npm run dev:api` writes to
 `.dev-user-data/` in the repository instead. That directory is gitignored.
 
 Favourites and settings live in `user-data.json` in whichever of those
-directories applies. See [User data on disk](#user-data-on-disk).
+directories applies. See [User data on disk](#user-data-on-disk). Link check
+results live beside them in `availability.json`, which is a measurement rather
+than the person's data and is treated accordingly -- see
+[Link availability](#link-availability).
 
 ## Building
 
@@ -243,6 +246,8 @@ to guess what came back.
 | `DELETE` | `/api/user-data/favourites/:gameId` | token | `200` the whole user data | `400` bad slug, `404` unknown id, `401` |
 | `POST` | `/api/user-data/history/:gameId` | token | `200` the whole user data | `400` bad slug, `404` unknown id, `401` |
 | `DELETE` | `/api/user-data/history` | token | `200` the whole user data | `401` |
+| `GET` | `/api/availability` | token | `200` the stored link check results | `401` |
+| `POST` | `/api/availability/check` | token | `200` the whole new report | `401` |
 
 Anything else under `/api` answers `404` with a JSON body rather than Express's
 default HTML page.
@@ -467,9 +472,10 @@ file we cannot read is not a file we know to be damaged: starting with defaults
 would leave the next write free to replace data that was probably still intact.
 Refusing to start is recoverable; overwriting is not.
 
-**Writes are atomic.** `writeFile` straight onto the real path is not: a crash
-partway through leaves a truncated file. Each write goes to
-`user-data.json.<random>.tmp` and is then `rename`d over the target, which
+**Writes are atomic**, here and for the link check results beside them --
+`server/storage/json-file.ts` holds the one copy. `writeFile` straight onto the
+real path is not atomic: a crash partway through leaves a truncated file. Each
+write goes to `user-data.json.<random>.tmp` and is then `rename`d over the target, which
 within one filesystem replaces it in a single step -- a reader sees the old
 contents or the new ones, never half of each. The temporary file is removed if
 the rename fails. What this does not do is `fsync` the directory, so a power
@@ -603,6 +609,98 @@ keeps the answer next to the question and does not block the window to ask.
 Forgetting one game is not offered -- a route nobody calls is a route nobody
 keeps correct.
 
+### Link availability
+
+The catalog promises sixteen working links. This is how the launcher checks
+whether that is still true, and how it says so without claiming more than it
+knows.
+
+![The diagnostics page listing every catalog link and what it answered](docs/screenshots/stage-9-diagnostics-links.png)
+
+**The check runs in Node, not in the page.** A renderer cannot do this at all:
+it could not read a cross-origin response without CORS headers those sites have
+no reason to send, the Content-Security-Policy restricts `connect-src` to this
+origin on purpose, and handing the page outbound access to sixteen third-party
+hosts is exactly what that policy exists to prevent. Node has no origin, no
+cookie jar and no cache, so what comes back is the answer to the question
+actually asked.
+
+**Nothing is ever checked automatically.** Each run tells sixteen other
+people's servers this machine's IP address and the fact that somebody here
+opened a game launcher. That is reasonable when the person asks for it and not
+reasonable behind their back on every start, so the only thing that starts a
+run is the button on the diagnostics page. Opening a game page reads the stored
+result; it never produces a new one.
+
+**The endpoint takes no parameter of any kind.** Not a URL, not even a game id.
+An endpoint that accepted one would be a handler that fetches an address chosen
+by its caller, which is the shape of every server-side request forgery there
+has ever been -- and on a loopback API the caller is a browser displaying
+content from the web. The renderer can say "check the catalog", and the catalog
+is the file the server validated at startup. There is no input to sanitise
+because there is no input.
+
+**Five states, and none of them is "works".** The launcher is not the game and
+cannot know whether a page that loads is playable, so every state describes the
+response instead:
+
+| State | Meaning | From |
+| --- | --- | --- |
+| `reachable` | answered over https, below 400 | `2xx`, `3xx` |
+| `insecure` | answered, but only after leaving https | a redirect to `http` |
+| `refused` | answered, and turned this client away | `401`, `403`, `407`, `429` |
+| `missing` | the address itself is gone | `404`, `410` |
+| `unknown` | the check did not finish | timeout, DNS or TLS failure, `5xx` |
+
+`refused` is not `missing` on purpose. A site that declines an automated
+request is up, and nothing follows from that about the game in a real browser;
+calling it broken would be inventing a fact. For the same reason `unknown`
+stays `unknown` -- a timeout may be the site or may be this machine's network,
+and the launcher cannot tell which.
+
+**It says who it is.** The request carries
+`User-Agent: GameLauncher (desktop launcher; link availability check)` rather
+than a borrowed browser string. Impersonating a browser would get past more of
+these sites, and the number it would improve is one this feature reports to the
+user as fact.
+
+**What the first run found.** Fifteen of the sixteen answered `200` over https.
+`slither.io` answers `302` to `http://slither.io/?a` -- the catalog's address is
+https, the site immediately drops to http, and no amount of care on this side
+changes that. It is reported as `insecure` rather than quietly as fine. The
+launcher still only ever hands an `https://` address to the operating system;
+what the site does with it afterwards is the site's choice, and now a visible
+one.
+
+![The game page showing that slither.io answers only over http](docs/screenshots/stage-9-game-availability.png)
+
+**A 404 outranks the scheme.** An answer is only downgraded to `insecure` when
+it would otherwise have been `reachable`. A `404` served over http is still a
+`404`, and reporting the scheme instead would hide the more useful of the two
+facts behind the less useful one.
+
+**HEAD first, then GET.** `HEAD` costs no body. Several sites have never been
+asked a `HEAD` question and answer it badly -- `405` by the book, `403` or `501`
+in practice -- while serving the same address to `GET` without complaint, so
+those three statuses are retried once with `GET` and the body is cancelled
+before it is read. Four requests run at a time, each with an eight-second
+timeout: sixteen at once is unkind to a laptop on hotel wifi and makes every
+timeout fire together, one at a time would take the worst case past two
+minutes. The real catalog takes about four seconds.
+
+**The results are not the person's data.** They live in `availability.json`,
+separate from `user-data.json`, and the two files are treated as the different
+things they are. A damaged report is discarded rather than quarantined, because
+the recovery is to press the button again; a damaged `user-data.json` is kept
+for inspection, because favourites are not recoverable from anywhere else. A
+report that could not be written is still shown, for the same reason in
+reverse: the measurement genuinely happened, and all a lost file costs is one
+press after the next start. Entries are salvaged one at a time, so a report
+written when the catalog had one more game loses that row and keeps the rest.
+
+**A second press joins the first run.** Two clicks are a person being
+impatient, not a reason to ask sixteen strangers' servers twice.
+
 ### Theme
 
 Three choices -- system, light, dark -- stored as one of those three words, not
@@ -680,7 +778,7 @@ shared/     Types shared between the Node side and Angular
 server/     Express API, routes, middleware, the catalog and the user's data
 src/app/
   core/     Services with no interface of their own: API client, bridge,
-            catalog store, user data, i18n, theme
+            catalog store, user data, link availability, i18n, theme
   features/ One folder per page: discover, favourites, game, settings,
             diagnostics
   shared/   Components used by more than one page

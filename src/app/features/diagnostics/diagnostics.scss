@@ -60,7 +60,20 @@
   text-align: right;
 
   &[data-state='ok'] { color: var(--state-ok); }
+  &[data-state='warn'] { color: var(--state-warn); }
   &[data-state='danger'] { color: var(--state-danger); }
+}
+
+/* An instant, printed like the other measurements rather than like prose. */
+.stamp {
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+}
+
+/* The one button on this page, in the padding the rows and notes share. */
+.panel__action {
+  margin: 0;
+  padding: 4px 20px 16px;
 }
 
 .panel__note {
