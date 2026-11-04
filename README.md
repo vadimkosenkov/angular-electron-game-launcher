@@ -500,6 +500,23 @@ the resulting order. Waiting for a round trip to a server on this machine would
 make every heart feel slow to protect against a case that ends in an error
 message either way.
 
+**A late answer is not installed.** Every write is answered with the whole of
+the user's data, which is what spares the renderer from merging -- and is
+exactly why an answer that arrives out of order has to be dropped. Two writes
+can be in flight at once: a heart pressed while a launch is being recorded,
+say. They travel on separate connections, and nothing makes the answers arrive
+in the order the questions were asked. So each whole-state answer carries a
+ticket, and one older than the last applied is ignored; otherwise the earlier
+snapshot would land last and quietly undo the newer change on screen, although
+the server had already written it to disk. Reproduced by holding one answer
+back in the renderer, and confirmed fixed the same way.
+
+What this does not do is reorder the requests. If they reach the server
+inverted it commits them inverted and the renderer applies what it is told --
+only the server knows its own commit order, and it is not asked, because the
+cost of the gap is a view briefly behind the file that the next answer
+corrects.
+
 ### Play history
 
 The launcher counts the games it opened, so the catalog can lead with what you

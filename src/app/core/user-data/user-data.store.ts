@@ -37,6 +37,13 @@ export class UserDataStore {
   private readonly readError = signal<string | null>(null);
   private readonly writeError = signal<string | null>(null);
 
+  /**
+   * Counters, not signals: nothing renders them, and a signal written from
+   * inside a subscription would be change detection for its own sake.
+   */
+  private issued = 0;
+  private applied = 0;
+
   readonly settings = computed(() => this.state().settings);
 
   /** Favourite ids in the server's order: most recently added first. */
@@ -84,8 +91,13 @@ export class UserDataStore {
    * the wrong language or theme.
    */
   async load(): Promise<void> {
+    const ticket = ++this.issued;
+
     try {
-      this.state.set(await firstValueFrom(this.api.getUserData()));
+      // Through the same gate as a write. A read is another whole-state
+      // answer, and the retry on the settings page can be pressed while one
+      // is still in flight.
+      this.apply(ticket, await firstValueFrom(this.api.getUserData()));
       this.loaded.set(true);
       this.readError.set(null);
     } catch (error: unknown) {
@@ -161,14 +173,19 @@ export class UserDataStore {
    */
   private save(optimistic: UserData, request: Observable<UserData>): void {
     const previous = this.state();
+    const ticket = ++this.issued;
 
     this.state.set(optimistic);
     this.writeError.set(null);
 
     request.subscribe({
-      next: (confirmed) => this.state.set(confirmed),
+      next: (confirmed) => this.apply(ticket, confirmed),
       error: (error: unknown) => {
-        this.state.set(previous);
+        // Only if nothing newer has landed in the meantime: putting `previous`
+        // back on top of a later answer would undo a change that did succeed.
+        if (ticket > this.applied) {
+          this.state.set(previous);
+        }
         this.writeError.set(describeApiError(error));
       },
     });
@@ -179,11 +196,42 @@ export class UserDataStore {
    * answers, and there is therefore nothing to roll back if it does not.
    */
   private send(request: Observable<UserData>): void {
+    const ticket = ++this.issued;
+
     this.writeError.set(null);
 
     request.subscribe({
-      next: (confirmed) => this.state.set(confirmed),
+      next: (confirmed) => this.apply(ticket, confirmed),
       error: (error: unknown) => this.writeError.set(describeApiError(error)),
     });
+  }
+
+  /**
+   * Installs a whole-state answer, unless an answer issued later already is.
+   *
+   * Every request here is answered with the whole of the user's data, which
+   * is what spares the renderer from merging -- and is exactly why a late
+   * answer must not be installed. Two of them can be in flight at once: a
+   * heart pressed while a launch is being recorded, a language switched while
+   * a read is retrying. They travel on separate connections, and nothing makes
+   * the answers arrive in the order the questions were asked. Without this
+   * watermark the older snapshot would land last and quietly undo the newer
+   * change on screen, although the server had already written it to disk.
+   *
+   * The mark advances on answers applied rather than on questions asked, so a
+   * later write that fails does not also discard an earlier one that worked.
+   *
+   * What it does not do is reorder the requests themselves. If those reach the
+   * server inverted it commits them inverted, and only the server knows its
+   * own commit order -- it is not asked, because the cost of the gap is a view
+   * briefly behind the file, which the next answer corrects.
+   */
+  private apply(ticket: number, data: UserData): void {
+    if (ticket <= this.applied) {
+      return;
+    }
+
+    this.applied = ticket;
+    this.state.set(data);
   }
 }
