@@ -38,11 +38,19 @@ export class UserDataStore {
   private readonly writeError = signal<string | null>(null);
 
   /**
-   * Counters, not signals: nothing renders them, and a signal written from
-   * inside a subscription would be change detection for its own sake.
+   * Counters and the last answer, none of them signals: nothing renders them,
+   * and a signal written from inside a subscription would be change detection
+   * for its own sake.
    */
   private issued = 0;
   private applied = 0;
+
+  /**
+   * The last state the server actually gave us, which is the only thing a
+   * failed write can safely fall back to. It is not what the interface shows:
+   * `state` is this plus whatever guesses are still waiting for an answer.
+   */
+  private confirmed: UserData = DEFAULT_USER_DATA;
 
   readonly settings = computed(() => this.state().settings);
 
@@ -163,16 +171,25 @@ export class UserDataStore {
    *
    * Waiting for the round trip would make a heart take a visible moment to
    * fill, for an API on this machine that will almost always succeed. So the
-   * change is shown immediately and the previous state is kept: if the write
-   * fails -- a full disk, a read-only directory -- it is put back and the
-   * failure is reported, rather than leaving the interface claiming something
-   * that is not on disk.
+   * change is shown immediately, and if the write fails -- a full disk, a
+   * read-only directory -- the interface falls back rather than going on
+   * claiming something that is not on disk.
+   *
+   * It falls back to the last answer the server gave, not to what was on
+   * screen a moment ago. Those differ exactly when two guesses overlap: the
+   * second one captures the first one's guess as its "before", so restoring
+   * that would leave a rejected change on screen once both writes fail. The
+   * last confirmed state is the only thing here known to be true.
+   *
+   * The cost is a guess still in flight disappearing for a moment when an
+   * unrelated one fails. It comes back as soon as its own answer lands, and a
+   * flicker is a smaller thing to be wrong about than a favourite the file
+   * does not have.
    *
    * On success the server's own answer replaces the guess. That matters for
    * more than tidiness: the server is the one that knows the resulting order.
    */
   private save(optimistic: UserData, request: Observable<UserData>): void {
-    const previous = this.state();
     const ticket = ++this.issued;
 
     this.state.set(optimistic);
@@ -181,10 +198,10 @@ export class UserDataStore {
     request.subscribe({
       next: (confirmed) => this.apply(ticket, confirmed),
       error: (error: unknown) => {
-        // Only if nothing newer has landed in the meantime: putting `previous`
-        // back on top of a later answer would undo a change that did succeed.
+        // Not if something newer has already landed: that answer is from the
+        // server too, and it is the more recent of the two truths.
         if (ticket > this.applied) {
-          this.state.set(previous);
+          this.state.set(this.confirmed);
         }
         this.writeError.set(describeApiError(error));
       },
@@ -232,6 +249,7 @@ export class UserDataStore {
     }
 
     this.applied = ticket;
+    this.confirmed = data;
     this.state.set(data);
   }
 }

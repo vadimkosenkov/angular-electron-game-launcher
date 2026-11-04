@@ -493,12 +493,21 @@ loses them. Favourites are unaffected either way: they are changed one id at a
 time, so the server merges rather than replaces.
 
 **The renderer guesses, the server decides.** Pressing a heart fills it at
-once and sends the request afterwards. If the write fails, the store puts the
-previous state back and the shell shows a banner explaining it; on success the
-server's own answer replaces the guess, which is also how the renderer learns
-the resulting order. Waiting for a round trip to a server on this machine would
-make every heart feel slow to protect against a case that ends in an error
-message either way.
+once and sends the request afterwards. If the write fails the shell shows a
+banner and the interface falls back; on success the server's own answer
+replaces the guess, which is also how the renderer learns the resulting order.
+Waiting for a round trip to a server on this machine would make every heart
+feel slow to protect against a case that ends in an error message either way.
+
+**It falls back to the last answer, not to the last screen.** Those differ
+exactly when two guesses overlap: the second one captures the first one's
+guess as its "before", so restoring that would leave a rejected change on
+screen once both writes fail -- press two hearts in the same moment against a
+read-only directory and one of them stays filled over a file that has
+neither. The last confirmed state is the only thing the renderer knows to be
+true, so that is what it goes back to. The cost is a guess still in flight
+disappearing for a moment when an unrelated one fails, which the arrival of
+its own answer undoes.
 
 **A late answer is not installed.** Every write is answered with the whole of
 the user's data, which is what spares the renderer from merging -- and is
