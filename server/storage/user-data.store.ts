@@ -1,5 +1,4 @@
-import { randomBytes } from 'node:crypto';
-import { mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, rename } from 'node:fs/promises';
 import { join } from 'node:path';
 
 import { z } from 'zod';
@@ -12,6 +11,7 @@ import {
   type UserData,
   type UserSettings,
 } from '../../shared/user-data.model';
+import { isMissingFile, writeJsonAtomically } from './json-file';
 
 /**
  * The file name is a constant, and the directory is handed to `loadUserData`
@@ -148,7 +148,7 @@ export async function loadUserData(options: LoadUserDataOptions): Promise<UserDa
   };
 
   const commit = async (next: UserData): Promise<UserData> => {
-    await writeAtomically(filePath, next);
+    await writeJsonAtomically(filePath, next);
     state = next;
     return next;
   };
@@ -309,42 +309,6 @@ function readSettingsField(json: unknown, key: keyof UserSettings): unknown {
   return (settings as Record<string, unknown>)[key];
 }
 
-/**
- * Writes through a temporary file in the same directory, then renames it over
- * the target.
- *
- * `writeFile` straight onto the real path is not atomic: a crash or a full
- * disk partway through leaves a truncated file, which is exactly the file this
- * loader would then have to quarantine. `rename` within one filesystem
- * replaces the target in a single step, so a reader sees either the old
- * contents or the new ones and never a half of each. The temporary name
- * carries random bytes so two writes can never pick the same one.
- *
- * What this does not do is `fsync` the directory, so a power cut in the
- * seconds after a rename can still lose the change on some filesystems.
- * Favourites are not worth an fsync per click; a file that is never corrupt
- * is, which is the part this buys.
- */
-async function writeAtomically(filePath: string, data: UserData): Promise<void> {
-  const tmpPath = `${filePath}.${randomBytes(6).toString('hex')}.tmp`;
-
-  try {
-    // Formatted and newline-terminated because a human may well open it.
-    // 0o600 because favourites are nobody else's business on a shared machine.
-    await writeFile(tmpPath, `${JSON.stringify(data, null, 2)}\n`, {
-      encoding: 'utf8',
-      mode: 0o600,
-    });
-    await rename(tmpPath, filePath);
-  } catch (error) {
-    // Only the rename can fail with the temporary file already written, but
-    // that is enough: without this, every such failure would leave another
-    // one behind. `force` ignores the case where it was never created.
-    await rm(tmpPath, { force: true });
-    throw error;
-  }
-}
-
 /** Keeps an unreadable file for inspection instead of destroying it. */
 async function quarantine(filePath: string): Promise<void> {
   const stamp = new Date().toISOString().replaceAll(':', '-');
@@ -357,8 +321,4 @@ async function quarantine(filePath: string): Promise<void> {
     // Nothing else to do: starting with defaults still beats refusing to run.
     console.error('[api] could not set aside the damaged user data file:', error);
   }
-}
-
-function isMissingFile(error: unknown): boolean {
-  return error instanceof Error && 'code' in error && error.code === 'ENOENT';
 }

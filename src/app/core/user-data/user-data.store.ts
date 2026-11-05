@@ -12,6 +12,7 @@ import {
 
 import { describeApiError } from '../api/api-error';
 import { ApiClient } from '../api/api.client';
+import { createRequestQueue } from '../api/request-queue';
 
 /**
  * The renderer's copy of the user's favourites and settings.
@@ -38,27 +39,15 @@ export class UserDataStore {
   private readonly writeError = signal<string | null>(null);
 
   /**
-   * One question at a time.
-   *
-   * Every request here is answered with the whole of the user's data, so an
-   * answer is only meaningful beside the others: install two out of order and
-   * the older snapshot quietly undoes the newer change. Ordering the answers
-   * after the fact cannot be done from this side -- the renderer knows when it
-   * asked, the server knows when it committed, and those are not the same
-   * list. Two requests sent together can arrive inverted, and then the server
-   * commits the newer intent first and the older one last, so the file ends up
-   * holding the change the person made first.
-   *
-   * Asking one at a time removes the question instead of answering it. It is
-   * what the server already does with its own writes, for the same reason, and
-   * it costs a queued request the round trip ahead of it -- milliseconds, to a
-   * server on this machine, while the guess is on screen already.
+   * Every request goes through here, one at a time. `request-queue.ts` has
+   * the reasoning; the short version is that two whole-state answers must
+   * never be outstanding together.
    *
    * Neither this nor `confirmed` is a signal: nothing renders them, and a
    * signal written from inside a subscription would be change detection for
    * its own sake.
    */
-  private pending: Promise<unknown> = Promise.resolve();
+  private readonly enqueue = createRequestQueue();
 
   /**
    * The last state the server actually gave us, which is the only thing a
@@ -232,19 +221,6 @@ export class UserDataStore {
         this.writeError.set(describeApiError(error));
       }
     });
-  }
-
-  /**
-   * Runs one task after the one before it, whatever became of that one.
-   *
-   * A task that threw must not block the ones behind it, so the chain is
-   * continued from the settled promise either way -- the same shape, and for
-   * the same reason, as the server's own write queue.
-   */
-  private enqueue(task: () => Promise<void>): Promise<void> {
-    const run = this.pending.then(task, task);
-    this.pending = run;
-    return run;
   }
 
   /**

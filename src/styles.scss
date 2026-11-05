@@ -43,6 +43,9 @@
 
   --accent: #4f8cff;
   --state-ok: #3ecf8e;
+  /* Between the two: a link that answers only over http is neither fine */
+  /* nor gone, and the colour should not claim either.                    */
+  --state-warn: #e2a33a;
   --state-danger: #f2555a;
 
   --shadow-card: 0 1px 2px rgb(0 0 0 / 40%), 0 8px 24px rgb(0 0 0 / 28%);
@@ -68,6 +71,7 @@
   /* #0f1115 does not have the contrast for text on white.                 */
   --accent: #2458d8;
   --state-ok: #0d8a57;
+  --state-warn: #9a6512;
   --state-danger: #c9252d;
 
   /* Shadows carry the elevation here, so they are tighter and much softer: */

@@ -183,6 +183,28 @@
     font-size: 12px;
     word-break: break-all;
   }
+
+  /* Secondary rather than primary: a check nobody has run is not a problem */
+  /* to be drawn attention to, it is simply an absence.                     */
+  &--muted {
+    color: var(--text-secondary);
+  }
+
+  /* Three colours for five states, because two of the five are the launcher */
+  /* admitting it learned nothing -- a refusal of an automated request and a */
+  /* check that did not finish say nothing about the game, so they are left  */
+  /* in the ordinary text colour rather than dressed as a verdict.           */
+  &[data-link='reachable'] {
+    color: var(--state-ok);
+  }
+
+  &[data-link='insecure'] {
+    color: var(--state-warn);
+  }
+
+  &[data-link='missing'] {
+    color: var(--state-danger);
+  }
 }
 
 .notice {

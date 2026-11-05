@@ -31,6 +31,51 @@
     }
   </section>
 
+  <section class="panel">
+    <h2 class="panel__heading">Catalog links</h2>
+
+    <p class="panel__note">
+      Each check asks a game's own address whether it answers, from the main
+      process rather than from this page. It cannot tell whether the game still
+      works, and it tells those sixteen sites this machine's IP address — so it
+      runs when you ask for it and at no other time.
+    </p>
+
+    <p class="panel__note">
+      @if (lastCheckedAt(); as when) {
+        Last run <span class="stamp">{{ when }}</span> — {{ linkTally() }}.
+      } @else {
+        No check has run yet.
+      }
+    </p>
+
+    <p class="panel__action">
+      <button
+        type="button"
+        class="button"
+        [disabled]="links.isChecking()"
+        (click)="links.check()"
+      >
+        {{ links.isChecking() ? 'Checking…' : 'Check now' }}
+      </button>
+    </p>
+
+    @if (links.loadFailure(); as failure) {
+      <p class="panel__note panel__note--error">{{ failure }}</p>
+    }
+
+    @if (linkRows().length > 0) {
+      <dl class="panel__rows">
+        @for (row of linkRows(); track row.label) {
+          <div class="row">
+            <dt class="row__label">{{ row.label }}</dt>
+            <dd class="row__value" [attr.data-state]="row.state">{{ row.value }}</dd>
+          </div>
+        }
+      </dl>
+    }
+  </section>
+
   @for (panel of panels; track panel.heading) {
     <section class="panel">
       <h2 class="panel__heading">{{ panel.heading }}</h2>

@@ -92,9 +92,24 @@ export const en = {
     unknown: 'Not recorded',
     notFoundTitle: 'No such game',
     notFoundHint: 'The catalog has no entry with that address.',
+    availability: 'Availability',
+    linkChecked: '{{status}}, checked {{when}}',
+    linkNever: 'Not checked yet',
     launches: 'Launches: {{count}}',
     lastPlayed: 'Last played {{when}}',
     neverPlayed: 'Not launched from here yet',
+  },
+  /**
+   * Every one of these describes the response, not the game. The launcher
+   * asked an address a question; it cannot say whether the game still works,
+   * and none of these words claims it does.
+   */
+  link: {
+    reachable: 'Answered over https',
+    insecure: 'Redirects off https',
+    refused: 'Refused an automated check',
+    missing: 'Address is gone',
+    unknown: 'Could not be checked',
   },
   genre: {
     action: 'Action',
