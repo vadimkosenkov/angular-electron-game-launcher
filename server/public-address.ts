@@ -94,11 +94,23 @@ function isPublicIPv4(address: string): boolean {
 }
 
 /**
- * Compared as numbers, not as text.
+ * Compared as numbers, and allowed by one positive rule rather than refused
+ * by a list.
  *
- * An IPv6 address has many spellings of the same value -- `::ffff:127.0.0.1`
- * is handed back by `new URL()` as `::ffff:7f00:1` -- so matching on the
- * written form is a check that the next normalisation walks straight past.
+ * Two mistakes to avoid here, and the first version made both. An IPv6
+ * address has many spellings of the same value -- `::ffff:127.0.0.1` is
+ * handed back by `new URL()` as `::ffff:7f00:1` -- so matching on the written
+ * form is a check the next normalisation walks straight past. And naming the
+ * ranges to refuse means the check is only as good as the list is complete:
+ * that version named unique-local and link-local, and let the deprecated
+ * site-local `fec0::/10` and the whole of multicast `ff00::/8` through.
+ *
+ * So the question is turned around. Exactly one block, `2000::/3`, is
+ * assigned as global unicast; everything else -- the unassigned blocks,
+ * `fc00::/7`, `fe80::/10`, `fec0::/10`, `ff00::/8`, `64:ff9b::/96` and the
+ * rest -- fails by not being in it, including the ranges nobody has thought
+ * of yet. A list that has to stay complete to be correct is the wrong shape
+ * for this.
  */
 function isPublicIPv6(address: string): boolean {
   const groups = expandIPv6(address);
@@ -106,25 +118,36 @@ function isPublicIPv6(address: string): boolean {
     return false;
   }
 
-  // `::` and `::1`: unspecified and loopback.
-  if (groups.slice(0, 7).every((group) => group === 0) && groups[7]! <= 1) {
+  // An IPv4 address wearing an IPv6 coat, in either of the two forms:
+  // `::ffff:7f00:1` (mapped) and the deprecated `::7f00:1` (compatible).
+  // Both reach `127.0.0.1` exactly as `127.0.0.1` does, so both are answered
+  // by the IPv4 rules -- which also disposes of `::` and `::1`, since
+  // `0.0.0.0` and `0.0.0.1` are not public either.
+  const prefix = groups.slice(0, 5);
+  if (prefix.every((group) => group === 0) && (groups[5] === 0xffff || groups[5] === 0)) {
+    return isPublicIPv4(toIPv4(groups[6]!, groups[7]!));
+  }
+
+  if ((groups[0]! & 0xe000) !== 0x2000) {
     return false;
   }
 
-  // An IPv4 address wearing an IPv6 coat. `::ffff:7f00:1` reaches loopback
-  // exactly as `127.0.0.1` does, so it is answered by the same rules.
-  if (groups.slice(0, 5).every((group) => group === 0) && groups[5] === 0xffff) {
-    const high = groups[6]!;
-    const low = groups[7]!;
-    return isPublicIPv4([high >> 8, high & 0xff, low >> 8, low & 0xff].join('.'));
+  // Two blocks inside global unicast still do not reach anybody's internet.
+  if (groups[0] === 0x2001 && groups[1] === 0x0db8) {
+    return false; // reserved for documentation
+  }
+  if (groups[0] === 0x2002) {
+    // 6to4 carries an IPv4 address in the next two groups, and
+    // `2002:7f00:1::` is a perfectly ordinary way to write loopback.
+    return isPublicIPv4(toIPv4(groups[1]!, groups[2]!));
   }
 
-  const first = groups[0]!;
+  return true;
+}
 
-  return !(
-    (first & 0xfe00) === 0xfc00 || // unique local, fc00::/7
-    (first & 0xffc0) === 0xfe80 // link-local, fe80::/10
-  );
+/** Two 16-bit groups read back out as the IPv4 address they carry. */
+function toIPv4(high: number, low: number): string {
+  return [high >> 8, high & 0xff, low >> 8, low & 0xff].join('.');
 }
 
 /** The eight 16-bit groups of an IPv6 address, with `::` filled back in. */

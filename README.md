@@ -649,13 +649,26 @@ outside. Browsers have private-network rules for this; Node has none.
 
 So redirects are followed by hand, at most five hops, and every hop is looked
 at before it is requested: the first address as well as each `Location`,
-because a catalog hostname could equally resolve somewhere local. An address
-is refused when it is loopback, private, link-local (which includes the cloud
-metadata address `169.254.169.254`), carrier-grade NAT, unspecified or
-multicast, whether it is written as a literal, spelled `localhost`, wrapped in
-IPv6 (`::ffff:7f00:1` is `127.0.0.1` wearing a coat) or arrived at through DNS
--- a name is refused if *any* address it resolves to is non-public. The refusal
+because a catalog hostname could equally resolve somewhere local. The refusal
 is reported as `unknown`, because the check genuinely did not finish.
+
+For IPv4 the non-public ranges are named: loopback, the three private blocks,
+link-local (which includes the cloud metadata address `169.254.169.254`),
+carrier-grade NAT, benchmarking, unspecified and multicast. For IPv6 the
+question is turned around and exactly one block is *allowed* -- `2000::/3`,
+the only one assigned as global unicast. The first version of this named
+ranges to refuse there too, and let the deprecated site-local `fec0::/10` and
+the whole of multicast `ff00::/8` straight through; a list that has to stay
+complete to be correct is the wrong shape for the job. Inside global unicast,
+documentation addresses and 6to4 wrapping a private IPv4 address are refused
+as well, and both v4-in-v6 forms are answered by the IPv4 rules, since
+`::ffff:7f00:1` and `2002:7f00:1::` are both ordinary ways of writing
+`127.0.0.1`.
+
+Addresses are compared as numbers throughout, never as text: `new URL()`
+normalises spellings, and a check that matches on the written form is one the
+next normalisation walks past. `localhost` is refused by name as well, and a
+name is refused if *any* address it resolves to is non-public.
 
 What this does not do is pin the connection to the address it checked. Between
 that lookup and the one `fetch` makes, a name under someone else's control can
