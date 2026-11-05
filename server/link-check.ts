@@ -1,6 +1,6 @@
 import type { LinkCheck, LinkStatus } from '../shared/availability.model';
 import type { Game } from '../shared/game.model';
-import { isHttpsUrl } from '../shared/url';
+import { describeNonPublicTarget } from './public-address';
 
 /**
  * Asks each game's address whether it is still there.
@@ -15,9 +15,13 @@ import { isHttpsUrl } from '../shared/url';
  * answer to the question actually asked.
  *
  * Nothing in this file takes a URL from a caller. It is handed games out of
- * the catalog the server validated at startup, and the catalog's addresses are
- * the only ones it ever requests -- which is the whole answer to "can a
- * request from the renderer make the server fetch an arbitrary address".
+ * the catalog the server validated at startup, and no address from the
+ * renderer ever reaches it.
+ *
+ * That is not quite the whole answer, though, and the part it misses is worth
+ * spelling out: a redirect is a URL chosen by whoever answered. Redirects are
+ * therefore followed by hand here rather than by `fetch`, so that every hop
+ * can be looked at before it is requested -- see `public-address.ts`.
  */
 
 /**
@@ -33,6 +37,13 @@ const TIMEOUT_MS = 8_000;
  * worst case to over two minutes.
  */
 const CONCURRENCY = 4;
+
+/**
+ * Enough for the usual apex-to-www or trailing-slash hop and then some. A
+ * chain longer than this is a loop or a site arguing with itself, and either
+ * way the launcher has learned what it is going to learn.
+ */
+const MAX_REDIRECTS = 5;
 
 /**
  * We say who we are.
@@ -69,30 +80,75 @@ async function checkGameLink(game: Game): Promise<LinkCheck> {
 
 type Outcome = Omit<LinkCheck, 'gameId' | 'checkedAt'>;
 
+/**
+ * Walks the redirect chain one hop at a time.
+ *
+ * `fetch` would do this itself, and that is exactly the problem: it would
+ * also follow a `Location` pointing at `http://127.0.0.1:9200/`, and the
+ * result -- open or refused -- would be reported in the launcher's own
+ * interface. Following by hand is what makes room for the check in front of
+ * every request.
+ */
 async function probe(url: string): Promise<Outcome> {
   try {
-    let response = await request(url, 'HEAD');
+    let target = new URL(url);
 
-    // A good many sites have never been asked a HEAD question and answer it
-    // badly -- 405 by the book, 403 or 501 in practice -- while serving the
-    // same address to GET without complaint. Asking again is what keeps those
-    // out of the `refused` column, where they would be wrong.
-    if (response.status === 405 || response.status === 501 || response.status === 403) {
-      response = await request(url, 'GET');
+    for (let hop = 0; hop <= MAX_REDIRECTS; hop++) {
+      const refusal = await describeNonPublicTarget(target);
+      if (refusal !== null) {
+        return {
+          status: 'unknown',
+          detail: hop === 0 ? `address ${refusal}` : `redirect target ${refusal}`,
+        };
+      }
+
+      let response = await request(target, 'HEAD');
+
+      // A good many sites have never been asked a HEAD question and answer
+      // it badly -- 405 by the book, 403 or 501 in practice -- while serving
+      // the same address to GET without complaint. Asking again is what
+      // keeps those out of the `refused` column, where they would be wrong.
+      if (response.status === 405 || response.status === 501 || response.status === 403) {
+        response = await request(target, 'GET');
+      }
+
+      const location = response.headers.get('location');
+      if (!isRedirect(response.status) || location === null) {
+        return readResponse(response);
+      }
+
+      const next = new URL(location, target);
+
+      // A chain that leaves https is not followed at all. It is already the
+      // answer -- the catalog promises https and this address does not keep
+      // the promise -- and following would mean this machine making a plain
+      // http request to a third party to learn something it already knows.
+      if (next.protocol !== 'https:') {
+        return {
+          status: 'insecure',
+          httpStatus: response.status,
+          detail: `redirected to ${next.protocol.replace(':', '')}`,
+        };
+      }
+
+      target = next;
     }
 
-    return readResponse(response);
+    return { status: 'unknown', detail: `more than ${MAX_REDIRECTS} redirects` };
   } catch (error: unknown) {
     return { status: 'unknown', detail: describeFailure(error) };
   }
 }
 
-async function request(url: string, method: 'HEAD' | 'GET'): Promise<Response> {
+function isRedirect(status: number): boolean {
+  return status === 301 || status === 302 || status === 303 || status === 307 || status === 308;
+}
+
+async function request(url: URL, method: 'HEAD' | 'GET'): Promise<Response> {
   const response = await fetch(url, {
     method,
-    // Redirects are followed because the address we ship is the address a
-    // person would type, and a site that moved its game is not broken.
-    redirect: 'follow',
+    // Followed by `probe` instead, one validated hop at a time.
+    redirect: 'manual',
     // No cookies are sent and none are kept: this is a reachability check,
     // not a visit, and it must not become one.
     credentials: 'omit',
@@ -108,25 +164,9 @@ async function request(url: string, method: 'HEAD' | 'GET'): Promise<Response> {
   return response;
 }
 
+/** The end of the chain: a response that is not a redirect. */
 function readResponse(response: Response): Outcome {
   const status = classify(response.status);
-
-  // `response.url` is where the redirect chain ended. A chain that leaves
-  // https gets its own state rather than being folded into either neighbour:
-  // it is not `reachable`, because the catalog says https and what answered
-  // did not, and it is not `unknown` either -- the check finished and the
-  // answer was clear.
-  //
-  // Only an otherwise good answer is downgraded, though. A 404 is a 404
-  // whichever scheme served it, and reporting the scheme instead would hide
-  // the more useful of the two facts behind the less useful one.
-  if (status === 'reachable' && !isHttpsUrl(response.url)) {
-    return {
-      status: 'insecure',
-      httpStatus: response.status,
-      detail: `redirected to ${new URL(response.url).protocol.replace(':', '')}`,
-    };
-  }
 
   return {
     status,

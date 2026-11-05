@@ -637,8 +637,33 @@ An endpoint that accepted one would be a handler that fetches an address chosen
 by its caller, which is the shape of every server-side request forgery there
 has ever been -- and on a loopback API the caller is a browser displaying
 content from the web. The renderer can say "check the catalog", and the catalog
-is the file the server validated at startup. There is no input to sanitise
-because there is no input.
+is the file the server validated at startup.
+
+**A redirect is also input, and that one was missed first time round.** No URL
+reaches the checker from the renderer, which looked like the end of the
+question and was not: a `Location` header is a URL chosen by whoever answered.
+A catalog host that redirected to `http://127.0.0.1:9200/` would have the
+launcher probe whatever is listening there and print the result -- open, or
+refused -- in its own interface. A port scanner with a button, driven from
+outside. Browsers have private-network rules for this; Node has none.
+
+So redirects are followed by hand, at most five hops, and every hop is looked
+at before it is requested: the first address as well as each `Location`,
+because a catalog hostname could equally resolve somewhere local. An address
+is refused when it is loopback, private, link-local (which includes the cloud
+metadata address `169.254.169.254`), carrier-grade NAT, unspecified or
+multicast, whether it is written as a literal, spelled `localhost`, wrapped in
+IPv6 (`::ffff:7f00:1` is `127.0.0.1` wearing a coat) or arrived at through DNS
+-- a name is refused if *any* address it resolves to is non-public. The refusal
+is reported as `unknown`, because the check genuinely did not finish.
+
+What this does not do is pin the connection to the address it checked. Between
+that lookup and the one `fetch` makes, a name under someone else's control can
+answer differently -- DNS rebinding. Closing it would mean dialling a literal
+address while carrying the original name in the `Host` header and the TLS
+handshake: a custom dispatcher's worth of machinery for a launcher that checks
+sixteen links on a button press. The redirect itself, which is the part an
+outside server actually controls, is covered.
 
 **Five states, and none of them is "works".** The launcher is not the game and
 cannot know whether a page that loads is playable, so every state describes the
@@ -678,6 +703,13 @@ one.
 it would otherwise have been `reachable`. A `404` served over http is still a
 `404`, and reporting the scheme instead would hide the more useful of the two
 facts behind the less useful one.
+
+**A redirect off https is not followed at all.** It is already the answer --
+the catalog promises https and the address does not keep the promise -- and
+following would mean this machine making a plain http request to a third party
+to learn something it already knows. The reported status is then the redirect's
+own (`302` for `slither.io`), because that is the response the launcher
+actually saw.
 
 **HEAD first, then GET.** `HEAD` costs no body. Several sites have never been
 asked a `HEAD` question and answer it badly -- `405` by the book, `403` or `501`
