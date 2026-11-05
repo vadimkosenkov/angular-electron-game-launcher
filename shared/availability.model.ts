@@ -14,10 +14,12 @@
  * response, not about the game:
  *
  * - `reachable` -- the address answered over https with a status below 400.
- * - `insecure`  -- it answered, but only after redirecting off https. The
- *                  game is there; the catalog's promise that it is served
- *                  securely is not kept. `slither.io` does exactly this, and
- *                  finding it is the reason this state exists.
+ * - `insecure`  -- it redirected off https, and the launcher stopped there
+ *                  rather than following. So this says the catalog's promise
+ *                  of https is not kept, and deliberately says nothing about
+ *                  whether the address behind the redirect answers: that was
+ *                  never asked. `slither.io` does exactly this, and finding
+ *                  it is the reason this state exists.
  * - `refused`   -- it answered, and turned us away (401, 403, 407, 429). The
  *                  site is up; it does not serve automated requests. Nothing
  *                  follows from this about the game in a real browser, which

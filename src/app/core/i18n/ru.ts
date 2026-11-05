@@ -102,7 +102,7 @@ export const ru: Translations = {
   },
   link: {
     reachable: 'Ответил по https',
-    insecure: 'Отвечает только по http',
+    insecure: 'Перенаправляет с https',
     refused: 'Отклонил автоматическую проверку',
     missing: 'Адреса больше нет',
     unknown: 'Проверить не удалось',

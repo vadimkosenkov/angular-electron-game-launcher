@@ -672,7 +672,7 @@ response instead:
 | State | Meaning | From |
 | --- | --- | --- |
 | `reachable` | answered over https, below 400 | `2xx`, `3xx` |
-| `insecure` | answered, but only after leaving https | a redirect to `http` |
+| `insecure` | redirected off https, and was not followed further | a redirect to `http` |
 | `refused` | answered, and turned this client away | `401`, `403`, `407`, `429` |
 | `missing` | the address itself is gone | `404`, `410` |
 | `unknown` | the check did not finish | timeout, DNS or TLS failure, `5xx` |
@@ -697,7 +697,12 @@ launcher still only ever hands an `https://` address to the operating system;
 what the site does with it afterwards is the site's choice, and now a visible
 one.
 
-![The game page showing that slither.io answers only over http](docs/screenshots/stage-9-game-availability.png)
+The label is *Redirects off https*, not "answers only over http", and the
+difference is the whole discipline of this feature in one line: the launcher
+stopped at the redirect and never asked the http address anything, so it has
+no business reporting that it answered.
+
+![The game page showing that slither.io redirects off https](docs/screenshots/stage-9-game-availability.png)
 
 **A 404 outranks the scheme.** An answer is only downgraded to `insecure` when
 it would otherwise have been `reachable`. A `404` served over http is still a

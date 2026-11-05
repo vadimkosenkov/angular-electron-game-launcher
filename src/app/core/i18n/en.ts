@@ -106,7 +106,7 @@ export const en = {
    */
   link: {
     reachable: 'Answered over https',
-    insecure: 'Answers only over http',
+    insecure: 'Redirects off https',
     refused: 'Refused an automated check',
     missing: 'Address is gone',
     unknown: 'Could not be checked',
