@@ -122,8 +122,13 @@ npm run package:dir   # the .app only, without the disk image -- faster to test
 ```
 
 Both run the build and the icon generator first, so there is no way to package
-a stale bundle. The result is `release/Game Launcher-<version>-arm64.dmg`,
+a stale bundle. The result is `release/game-launcher-<version>-arm64.dmg`,
 about 115 MB, of which Electron's own framework is nearly all.
+
+The file is named from the package name rather than from `productName`, which
+has a space in it: a space in a download URL becomes `%20`, which is awkward to
+paste and awkward for `curl` without quoting. `artifactName` in
+`electron-builder.yml` is what decides this.
 
 [electron-builder](https://www.electron.build/) does the work, configured in
 `electron-builder.yml` rather than in a `build` key in `package.json`, so the
